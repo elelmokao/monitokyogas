@@ -2,20 +2,10 @@
   <div class="chart-container">
     <div class="chart-header">
       <h2 class="chart-title">Energy Usage Trends</h2>
-      <div class="chart-controls">
-        <select 
-          v-model="selectedPeriod" 
-          @change="updateChart"
-          class="period-selector"
-        >
-          <option value="7">Last 7 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="90">Last 90 days</option>
-        </select>
-      </div>
+      <!-- Period selector moved to dashboard -->
     </div>
     <div class="chart-wrapper">
-      <Line
+      <Bar
         v-if="chartData"
         :data="chartData"
         :options="chartOptions"
@@ -31,26 +21,22 @@ import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
+  BarElement,
   Title,
   Tooltip,
-  Legend,
-  Filler
+  Legend
 } from 'chart.js';
-import { Line } from 'vue-chartjs';
+import { Bar } from 'vue-chartjs';
 import { EnergyUsageRecord } from '../types/energy';
 import { format } from 'date-fns';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
+  BarElement,
   Title,
   Tooltip,
-  Legend,
-  Filler
+  Legend
 );
 
 interface Props {
@@ -58,34 +44,38 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const selectedPeriod = ref(30);
-
 const filteredData = computed(() => {
-  return props.data.slice(-selectedPeriod.value);
+  return props.data;
 });
 
 const chartData = computed(() => {
   const data = filteredData.value;
   
+  // Set bar color: red if value > 4, else blue
+  const backgroundColors = data.map(record =>
+    record.usage > 4 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(16, 185, 129, 0.7)'
+  );
+  const borderColors = data.map(record =>
+    record.usage > 4 ? '#dc2626' : '#10b981'
+  );
+  const hoverBackgroundColors = data.map(record =>
+    record.usage > 4 ? '#b91c1c' : '#10b981'
+  );
+  const hoverBorderColors = data.map(record =>
+    record.usage > 4 ? '#991b1b' : '#10b981'
+  );
   return {
     labels: data.map(record => format(new Date(record.date), 'MMM dd')),
     datasets: [
       {
         label: 'Energy Usage (kWh)',
         data: data.map(record => record.usage),
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        borderColor: '#10b981',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: '#10b981',
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#065f46',
-        pointHoverBorderColor: '#ffffff',
-        pointHoverBorderWidth: 2,
+        backgroundColor: backgroundColors,
+        borderColor: borderColors,
+        borderWidth: 2,
+        borderRadius: 6,
+        hoverBackgroundColor: hoverBackgroundColors,
+        hoverBorderColor: hoverBorderColors,
       }
     ]
   };
@@ -195,13 +185,13 @@ const updateChart = () => {
 }
 
 .period-selector:hover {
-  border-color: #10b981;
+  border-color: #1e293b;
   background: #f0fdf4;
 }
 
 .period-selector:focus {
   outline: none;
-  border-color: #10b981;
+  border-color: #1e293b;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 

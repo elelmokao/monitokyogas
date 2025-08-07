@@ -49,58 +49,72 @@
         </div>
       </header>
 
-      <div class="metrics-grid">
-        <MetricsCard
-          title="Total Usage"
-          :value="metrics.totalUsage"
-          :subtitle="`Over ${metrics.totalDays} days`"
+      <div class="period-controls" style="margin-bottom: 16px;">
+        <label for="period-select" class="period-label">Period:</label>
+        <select
+          id="period-select"
+          v-model="selectedPeriod"
+          class="period-selector"
         >
-          <template #icon>
-            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
-          </template>
-        </MetricsCard>
-
-        <MetricsCard
-          title="Average Daily"
-          :value="metrics.averageUsage"
-          subtitle="Per day consumption"
-        >
-          <template #icon>
-            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-            </svg>
-          </template>
-        </MetricsCard>
-
-        <MetricsCard
-          title="Peak Usage"
-          :value="metrics.peakUsage"
-          subtitle="Highest recorded"
-        >
-          <template #icon>
-            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-            </svg>
-          </template>
-        </MetricsCard>
-
-        <MetricsCard
-          title="Lowest Usage"
-          :value="metrics.lowestUsage"
-          subtitle="Most efficient day"
-        >
-          <template #icon>
-            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
-            </svg>
-          </template>
-        </MetricsCard>
+          <option :value="7">Last 7 days</option>
+          <option :value="30">Last 30 days</option>
+          <option :value="90">Last 90 days</option>
+        </select>
       </div>
+      <div class="metrics-and-charts">
+        <div class="metrics-grid">
+          <MetricsCard
+            title="Total Usage"
+            :value="filteredMetrics.totalUsage"
+            :subtitle="`Over ${filteredMetrics.totalDays} days`"
+          >
+            <template #icon>
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </template>
+          </MetricsCard>
 
-      <div class="chart-section">
-        <EnergyChart :data="energyData" />
+          <MetricsCard
+            title="Average Daily"
+            :value="filteredMetrics.averageUsage"
+            subtitle="Per day consumption"
+          >
+            <template #icon>
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+            </template>
+          </MetricsCard>
+
+          <MetricsCard
+            title="Peak Usage"
+            :value="filteredMetrics.peakUsage"
+            subtitle="Highest recorded"
+          >
+            <template #icon>
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+              </svg>
+            </template>
+          </MetricsCard>
+
+          <MetricsCard
+            title="Lowest Usage"
+            :value="filteredMetrics.lowestUsage"
+            subtitle="Most efficient day"
+          >
+            <template #icon>
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+              </svg>
+            </template>
+          </MetricsCard>
+        </div>
+
+        <div class="chart-section">
+          <EnergyChart :data="filteredData" />
+        </div>
       </div>
       <div class="data-info">
         <p class="data-source">
@@ -124,7 +138,9 @@ const isLoading = ref(true);
 const error = ref<string | null>(null);
 const lastUpdated = ref<string>('');
 
-const metrics = computed<EnergyMetrics>(() => calculateMetrics(energyData.value));
+const selectedPeriod = ref(30);
+const filteredData = computed(() => energyData.value.slice(-selectedPeriod.value));
+const filteredMetrics = computed<EnergyMetrics>(() => calculateMetrics(filteredData.value));
 
 const loadData = async () => {
   isLoading.value = true;
@@ -348,8 +364,16 @@ onMounted(() => {
   color: #065f46;
 }
 
+.metrics-and-charts {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+}
+
 .metrics-grid {
   display: grid;
+  flex-direction: column;
+  display: flex;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
