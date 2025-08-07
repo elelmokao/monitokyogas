@@ -118,7 +118,7 @@
       </div>
       <div class="data-info">
         <p class="data-source">
-          Data source: <a href="https://github.com/elelmokao/monitokyogas/blob/main/csv/electricity.csv" target="_blank" rel="noopener noreferrer">GitHub CSV</a>
+          Data source: <a href="https://github.com/elelmokao/monitokyogas/blob/main/backend/csv/electricity.csv" target="_blank" rel="noopener noreferrer">GitHub CSV</a>
           • Last updated: {{ lastUpdated }}
         </p>
       </div>
