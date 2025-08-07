@@ -100,25 +100,28 @@ export const parseCSV = (csvContent: string): EnergyUsageRecord[] => {
     
     // Sort by date
     records.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Remove today's date if it exists
+    const today = new Date().toISOString().split('T')[0];
+    const filteredRecords = records.filter(record => record.date !== today);
 
     // Ensure at least 90 days of data
-    if (records.length < 90) {
+    if (filteredRecords.length < 90) {
       // Find the earliest date in the records, or use today if empty
-      const earliestDate = records.length > 0
-        ? new Date(records[0].date)
+      const earliestDate = filteredRecords.length > 0
+        ? new Date(filteredRecords[0].date)
         : new Date();
       // Add missing days before the earliest date
-      for (let i = records.length; i < 90; i++) {
+      for (let i = filteredRecords.length; i < 90; i++) {
         const missingDate = new Date(earliestDate);
         missingDate.setDate(earliestDate.getDate() - (90 - i));
-        records.unshift({
+        filteredRecords.unshift({
           date: missingDate.toISOString().split('T')[0],
           usage: 0
         });
       }
     }
 
-    return records;
+    return filteredRecords;
   } catch (error) {
     console.error('Error parsing CSV:', error);
     throw error;

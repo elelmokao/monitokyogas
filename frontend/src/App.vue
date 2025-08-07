@@ -22,5 +22,13 @@ body {
 #app {
   margin: 0;
   padding: 0;
+  width: 100%;
+}
+
+html, body {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
 }
 </style>

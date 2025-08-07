@@ -39,7 +39,7 @@
       <header class="dashboard-header">
         <div class="header-content">
           <h1 class="dashboard-title">Energy Usage Monitor</h1>
-          <p class="dashboard-subtitle">Track and analyze your energy consumption patterns</p>
+          <p class="dashboard-subtitle">Track and analyze energy consumption patterns</p>
         </div>
         <div class="header-status">
           <div class="status-indicator">
@@ -169,7 +169,6 @@ onMounted(() => {
 
 <style scoped>
 .dashboard {
-  max-width: 1400px;
   margin: 0 auto;
   padding: 16px;
   min-height: 100vh;
@@ -368,19 +367,28 @@ onMounted(() => {
   display: flex;
   flex-direction: row;
   gap: 24px;
+  align-items: stretch;
+  width: 100%;
 }
 
 .metrics-grid {
-  display: grid;
-  flex-direction: column;
+  min-width: 30px;
   display: flex;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  flex-direction: column;
+  flex: 0 0 auto;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
+  height: 100%;
 }
 
 .chart-section {
-  margin-bottom: 24px;
+  flex: 1 1 0;
+  min-width: 30px;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: 100%;
 }
 
 .insights-section {
