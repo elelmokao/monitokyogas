@@ -11,7 +11,7 @@ const cookieFilePath = path.join(__dirname, "cookie_store", "cookie.txt");
 dotenv.config();
 
 // Output CSV path
-const csvFilePath = path.join("../csv/", "electricity.csv");
+const csvFilePath = path.join("./csv_store/", "electricity.csv");
 
 interface UsageData {
   date: string;
@@ -79,6 +79,11 @@ async function appendToCSV(data: UsageData[]) {
   const existingDates = readExistingDates();
   console.log("Existing dates in CSV:", existingDates);
 
+  // Ensure CSV file has header if it doesn't exist
+  if (!fs.existsSync(csvFilePath)) {
+    fs.writeFileSync(csvFilePath, 'Date,Usage (kWh)\n', 'utf-8');
+  }
+
   // Add one day to each date
   const newData = data
     .slice(1) // start from the 2nd item
@@ -99,7 +104,7 @@ async function appendToCSV(data: UsageData[]) {
       { id: "date", title: "Date" },
       { id: "usage", title: "Usage (kWh)" },
     ],
-    append: fs.existsSync(csvFilePath),
+    append: true,
   });
 
   await writer.writeRecords(newData);
