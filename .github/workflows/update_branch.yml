@@ -25,6 +25,11 @@ jobs:
       - name: Sync and push to data branch
         run: |
           git switch data
-          git pull origin data
+          if git show-ref --verify --quiet refs/heads/data; then
+            git switch data
+            git pull origin data
+          else
+            git switch -c data
+          fi
           git merge --no-ff origin/main -m "Merge main into data [skip ci]"
           git push origin data
