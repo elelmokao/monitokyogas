@@ -25,7 +25,10 @@ jobs:
       - name: Sync and push to data branch
         run: |
           git fetch --all
-          if git show-ref --verify --quiet refs/heads/data; then
+          # echo all branches
+          git branch -a
+          # Check if data branch exists and switch to it, otherwise exit
+          if git show-ref --verify --quiet refs/remotes/origin/data; then
             git switch data
             git pull origin data
           else
