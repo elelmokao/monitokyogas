@@ -26,8 +26,8 @@ async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
       operationName: "DailyElectricityUsage",
       variables: {
         contractIndexNumber: 1,
-        electricityContractNumber: "6515163761",
-        fromDate,
+        electricityContractNumber: process.env.CONTRACT_NUMBER,
+        fromDate: fromDate,
         toDate: null,
       },
       query: `
