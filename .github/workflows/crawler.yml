@@ -19,15 +19,16 @@ jobs:
         with:
           node-version: '22.16.0'
 
-      - name: Install ts-node
-        run: npm install -g ts-node
-
       - name: Install dependencies
         working-directory: backend
-        run: npm install
+        run: |
+          npm install
+          npx puppeteer browsers install chrome
+
 
       - name: Run fetchElectricity
-        run: npx tsx backend/fetchElectricity.ts
+        working-directory: backend
+        run: npx tsx fetchElectricity.ts
         env:
           TOKYOGAS_EMAIL: ${{ secrets.TOKYOGAS_EMAIL }}
           TOKYOGAS_PASSWORD: ${{ secrets.TOKYOGAS_PASSWORD }}

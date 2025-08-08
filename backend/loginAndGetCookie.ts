@@ -8,7 +8,10 @@ export async function loginAndGetCookie(): Promise<string> {
     throw new Error("Please set TOKYOGAS_EMAIL and TOKYOGAS_PASSWORD in your .env file");
   }
 
-  const browser = await puppeteer.launch({ headless: true });
+const browser = await puppeteer.launch({
+  headless: true,
+  args: ['--no-sandbox', '--disable-setuid-sandbox'],
+});
   const page = await browser.newPage();
 
   // Visit the login page
