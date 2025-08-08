@@ -19,6 +19,7 @@ interface UsageData {
 }
 
 async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
+  const fromDate = dayjs().subtract(14, "day").format("YYYY-MM-DD");
   const response = await axios.post(
     "https://members.tokyo-gas.co.jp/graphql",
     {
@@ -26,7 +27,7 @@ async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
       variables: {
         contractIndexNumber: 1,
         electricityContractNumber: "6515163761",
-        fromDate: "2025-07-24",
+        fromDate,
         toDate: null,
       },
       query: `
@@ -77,7 +78,6 @@ function readExistingDates(): Set<string> {
 
 async function appendToCSV(data: UsageData[]) {
   const existingDates = readExistingDates();
-  console.log("Existing dates in CSV:", existingDates);
 
   // Ensure CSV file has header if it doesn't exist
   if (!fs.existsSync(csvFilePath)) {
@@ -86,16 +86,22 @@ async function appendToCSV(data: UsageData[]) {
 
   // Add one day to each date
   const newData = data
-    .slice(1) // start from the 2nd item
+    .slice()
+    .reverse()
     .map((d) => ({
       ...d,
       date: dayjs(d.date).add(1, "day").format("YYYY-MM-DD"),
     }))
-    .filter((d) => !existingDates.has(d.date));
+    .filter((d) => !existingDates.has(d.date) && d.usage != null);
 
   if (newData.length === 0) {
     console.log("No new data to append");
     return;
+  }
+
+  // If the file does not exist, create it with the header
+  if (!fs.existsSync(csvFilePath)) {
+    fs.writeFileSync(csvFilePath, 'Date,Usage (kWh)\n', 'utf-8');
   }
 
   const writer = createObjectCsvWriter({
@@ -130,7 +136,6 @@ async function main() {
     // 2. If no cookie or invalid, re-login
     cookie = await loginAndGetCookie();
     fs.writeFileSync(cookieFilePath, cookie, "utf-8");
-    console.log("Obtained Cookie:", cookie);
     const usageData = await fetchElectricityUsage(cookie);
     await appendToCSV(usageData);
   } catch (err) {

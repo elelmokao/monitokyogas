@@ -6,7 +6,7 @@ export async function loginAndGetCookie(): Promise<string> {
   const password = process.env.TOKYOGAS_PASSWORD!;
   console.log("使用者 Email:", email);
 
-  const browser = await puppeteer.launch({ headless: false }); // 可設成 false 看畫面
+  const browser = await puppeteer.launch({ headless: true }); // 可設成 false 看畫面
   const page = await browser.newPage();
 
   // 訪問登入頁面
