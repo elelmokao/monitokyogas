@@ -18,13 +18,16 @@ jobs:
       - name: Install ts-node
         run: npm install -g ts-node
 
+      - name: Install dependencies
+        run: npm install
+
       - name: Run fetchElectricity
         run: npx tsx backend/fetchElectricity.ts
         env:
           TOKYOGAS_EMAIL: ${{ secrets.TOKYOGAS_EMAIL }}
           TOKYOGAS_PASSWORD: ${{ secrets.TOKYOGAS_PASSWORD }}
           CONTRACT_NUMBER: ${{ secrets.CONTRACT_NUMBER }}
-          
+
       - name: Push the csv file to the repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
