@@ -1,0 +1,37 @@
+name: TokyoGas Usage Crawler
+
+on:
+  schedule:
+    - cron: '30 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-fetch-electricity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+
+      - name: Install ts-node
+        run: npm install -g ts-node
+
+      - name: Run fetchElectricity
+        run: npx tsx backend/fetchElectricity.ts
+        env:
+          TOKYOGAS_EMAIL: ${{ secrets.TOKYOGAS_EMAIL }}
+          TOKYOGAS_PASSWORD: ${{ secrets.TOKYOGAS_PASSWORD }}
+          CONTRACT_NUMBER: ${{ secrets.CONTRACT_NUMBER }}
+          
+      - name: Push the csv file to the repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git pull
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/csv_store/*.csv
+          git commit -m "Update CSV files [skip ci]" || echo "No changes to commit"
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
