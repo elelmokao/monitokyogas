@@ -1,42 +1,30 @@
-name: Sync main code to data branch
+name: Sync main to data
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
-  sync-code:
+  sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main branch
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Git user
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
 
-      - name: Fetch data branch
-        run: git fetch origin data:data || true
-
-      - name: Switch to data branch (create if missing)
+      - name: Sync and push to data branch
         run: |
-          if git show-ref --verify --quiet refs/heads/data; then
-            git checkout data
-          else
-            git checkout -b data
-          fi
-
-      - name: Sync code from main (overwrite code, keep CSV)
-        run: |
-          git checkout main -- backend frontend
-          git add backend frontend
-          git commit -m "Sync code from main branch" || echo "No code changes"
-
-      - name: Push to data branch
-        run: git push origin data --force
+          git switch data
+          git pull origin data
+          git merge --no-ff origin/main -m "Merge main into data [skip ci]"
+          git push origin data
