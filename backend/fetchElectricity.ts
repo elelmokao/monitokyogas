@@ -16,6 +16,7 @@ const csvFilePath = path.join("./csv_store/", "electricity.csv");
 interface UsageData {
   date: string;
   usage: number;
+  contract_number?: string;
 }
 
 async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
@@ -64,6 +65,7 @@ async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
   return response.data.data.dailyElectricityUsage.map((entry: any) => ({
     date: entry.date.slice(0, 10),
     usage: entry.usage,
+    contract_number: process.env.CONTRACT_NUMBER,
   }));
 }
 
