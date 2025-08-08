@@ -81,7 +81,6 @@ function readExistingDates(): Set<string> {
 async function appendToCSV(data: UsageData[]) {
   const existingDates = readExistingDates();
 
-  // Ensure CSV file has header if it doesn't exist
   if (!fs.existsSync(csvFilePath)) {
     fs.writeFileSync(csvFilePath, 'Date,Usage (kWh)\n', 'utf-8');
   }
