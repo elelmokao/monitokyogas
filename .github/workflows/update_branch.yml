@@ -1,0 +1,39 @@
+name: Update branch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git User
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch all branches
+        run: git fetch origin
+
+      - name: Switch to data branch (create if missing)
+        run: |
+          if git show-ref --verify --quiet refs/heads/data; then
+            git checkout data
+          else
+            git checkout -b data
+          fi
+
+      - name: Merge main into data
+        run: git merge origin/main --no-edit
+
+      - name: Push to data branch
+        run: git push origin data
