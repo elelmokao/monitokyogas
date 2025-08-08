@@ -10,7 +10,6 @@ const cookieFilePath = path.join(__dirname, "cookie_store", "cookie.txt");
 
 dotenv.config();
 
-// Output CSV path
 const csvFilePath = path.join("./csv_store/", "electricity.csv");
 
 interface UsageData {
