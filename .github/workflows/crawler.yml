@@ -19,6 +19,7 @@ jobs:
         run: npm install -g ts-node
 
       - name: Install dependencies
+        working-directory: backend
         run: npm install
 
       - name: Run fetchElectricity
