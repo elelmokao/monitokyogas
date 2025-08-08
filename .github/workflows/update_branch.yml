@@ -24,7 +24,7 @@ jobs:
 
       - name: Sync and push to data branch
         run: |
-          git fetch origin
+          git fetch --all
           if git show-ref --verify --quiet refs/heads/data; then
             git switch data
             git pull origin data
