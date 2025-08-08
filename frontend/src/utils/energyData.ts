@@ -130,7 +130,7 @@ export const parseCSV = (csvContent: string): EnergyUsageRecord[] => {
 
 // Fetch CSV from GitHub raw URL
 export const fetchEnergyDataFromGitHub = async (): Promise<EnergyUsageRecord[]> => {
-  const githubRawUrl = 'https://raw.githubusercontent.com/elelmokao/monitokyogas/main/backend/csv_store/electricity.csv';
+  const githubRawUrl = 'https://raw.githubusercontent.com/elelmokao/monitokyogas/data/backend/csv_store/electricity.csv';
   
   try {
     console.log('Fetching energy data from GitHub...');
