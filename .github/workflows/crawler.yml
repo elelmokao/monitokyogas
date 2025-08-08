@@ -12,11 +12,19 @@ permissions:
 jobs:
   run-fetch-electricity:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/data'
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: data
+          fetch-depth: 0
+
+      - name: Ensure data branch exists and checkout
+        run: |
+          git fetch origin
+          if git show-ref --verify --quiet refs/remotes/origin/data; then
+            git checkout data
+          else
+            git checkout -b data
+          fi
 
       - uses: actions/setup-node@v4
         with:
@@ -42,16 +50,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          git fetch origin
-
-          if git show-ref --verify --quiet refs/heads/data; then
-            git checkout data
-          else
-            git checkout --orphan data
-          fi
-
           git add backend/csv_store/*.csv
           git commit -m "Update CSV files [skip ci]" || echo "No changes to commit"
-
           git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git data
