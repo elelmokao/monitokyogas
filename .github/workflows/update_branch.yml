@@ -29,7 +29,8 @@ jobs:
             git switch data
             git pull origin data
           else
-            git switch -c data
+            echo "Data branch does not exist. Exiting."
+            exit 0
           fi
           git merge --no-ff origin/main -m "Merge main into data [skip ci]"
           git push origin data
