@@ -62,10 +62,7 @@ async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
       },
     }
   );
-  console.log(cookie);
   console.log("Response status:", response.status);
-  console.log("Fetched electricity usage data:", response.data);
-  console.log("Data length:", response.data.data.dailyElectricityUsage);
   return response.data.data.dailyElectricityUsage.map((entry: any) => ({
     date: entry.date.slice(0, 10),
     usage: entry.usage,
