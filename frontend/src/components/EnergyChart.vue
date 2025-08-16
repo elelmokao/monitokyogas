@@ -120,7 +120,7 @@ const chartOptions = computed(() => ({
         color: '#64748b',
         font: {
           size: 12,
-          weight: '500'
+          weight: 500
         }
       }
     },
@@ -134,7 +134,7 @@ const chartOptions = computed(() => ({
         color: '#64748b',
         font: {
           size: 12,
-          weight: '500'
+          weight: 500
         },
         callback: function(value: any) {
           return `${value} kWh`;
@@ -144,9 +144,6 @@ const chartOptions = computed(() => ({
   }
 }));
 
-const updateChart = () => {
-  // Chart will automatically update due to reactive computed properties
-};
 </script>
 
 <style scoped>
