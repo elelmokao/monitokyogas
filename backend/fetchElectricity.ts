@@ -10,7 +10,22 @@ const cookieFilePath = path.join(__dirname, "cookie_store", "cookie.txt");
 
 dotenv.config();
 
-const csvFilePath = path.join("./csv_store/", "electricity.csv");
+
+// 依據日期取得分組的 csv 檔名
+function getCsvFilePath(dateStr: string): string {
+  const date = dayjs(dateStr);
+  let startMonth = date.month();
+  let startYear = date.year();
+  if (date.date() >= 24) { // Belong to next month
+    date.add(1, 'month');
+    startMonth = date.month();
+    startYear = date.year();
+  }
+  // 區間起始年月
+  const fileMonth = (startMonth).toString().padStart(2, '0');
+  const fileYear = startYear;
+  return path.join("./csv_store/", `electricity_${fileYear}-${fileMonth}.csv`);
+}
 
 interface UsageData {
   date: string;
@@ -69,53 +84,45 @@ async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
   }));
 }
 
-
-// Check if the CSV already contains the specified date
-function readExistingDates(): Set<string> {
-  if (!fs.existsSync(csvFilePath)) return new Set();
-  const content = fs.readFileSync(csvFilePath, "utf-8");
-  const lines = content.trim().split("\n");
-  return new Set(lines.slice(1).map((line) => line.split(",")[0]));
-}
-
 async function appendToCSV(data: UsageData[]) {
-  const existingDates = readExistingDates();
-
-  if (!fs.existsSync(csvFilePath)) {
-    fs.writeFileSync(csvFilePath, 'Date,Usage (kWh)\n', 'utf-8');
+  // 依照分組分檔案
+  // 先將資料依區間分組
+  const groups: { [filePath: string]: UsageData[] } = {};
+  for (const d of data) {
+    const dateStr = dayjs(d.date).add(1, "day").format("YYYY-MM-DD");
+    const filePath = getCsvFilePath(dateStr);
+    if (!groups[filePath]) groups[filePath] = [];
+    groups[filePath].push({ ...d, date: dateStr });
   }
 
-  // Add one day to each date
-  const newData = data
-    .slice()
-    .reverse()
-    .map((d) => ({
-      ...d,
-      date: dayjs(d.date).add(1, "day").format("YYYY-MM-DD"),
-    }))
-    .filter((d) => !existingDates.has(d.date) && d.usage != null);
+  for (const [filePath, groupData] of Object.entries(groups)) {
+    // 檢查已存在的日期
+    const existingDates = (() => {
+      if (!fs.existsSync(filePath)) return new Set();
+      const content = fs.readFileSync(filePath, "utf-8");
+      const lines = content.trim().split("\n");
+      return new Set(lines.slice(1).map((line) => line.split(",")[0]));
+    })();
 
-  if (newData.length === 0) {
-    console.log("No new data to append");
-    return;
+    const newData = groupData.filter((d) => !existingDates.has(d.date) && d.usage != null);
+    if (newData.length === 0) {
+      console.log(`No new data to append for ${filePath}`);
+      continue;
+    }
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, 'Date,Usage (kWh)\n', 'utf-8');
+    }
+    const writer = createObjectCsvWriter({
+      path: filePath,
+      header: [
+        { id: "date", title: "Date" },
+        { id: "usage", title: "Usage (kWh)" },
+      ],
+      append: true,
+    });
+    await writer.writeRecords(newData);
+    console.log(`Appended ${newData.length} records to ${filePath}`);
   }
-
-  // If the file does not exist, create it with the header
-  if (!fs.existsSync(csvFilePath)) {
-    fs.writeFileSync(csvFilePath, 'Date,Usage (kWh)\n', 'utf-8');
-  }
-
-  const writer = createObjectCsvWriter({
-    path: csvFilePath,
-    header: [
-      { id: "date", title: "Date" },
-      { id: "usage", title: "Usage (kWh)" },
-    ],
-    append: true,
-  });
-
-  await writer.writeRecords(newData);
-  console.log(`Appended ${newData.length} records to CSV`);
 }
 
 async function main() {
