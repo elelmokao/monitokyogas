@@ -104,7 +104,7 @@ async function appendToCSV(data: UsageData[]) {
       return new Set(lines.slice(1).map((line) => line.split(",")[0]));
     })();
 
-    const newData = groupData.filter((d) => !existingDates.has(d.date) && d.usage != null);
+    const newData = groupData.filter((d) => !existingDates.has(d.date) && d.usage != null).reverse();
     if (newData.length === 0) {
       console.log(`No new data to append for ${filePath}`);
       continue;
