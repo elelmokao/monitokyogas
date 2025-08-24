@@ -74,5 +74,5 @@ jobs:
         working-directory: backend
         run: npx tsx dcNoticeBot.ts
         env:
-          DC_CHANNEL_ID=${{ secrets.DC_CHANNEL_ID }}
-          DC_TOKEN=${{ secrets.DC_TOKEN }}
+          DC_CHANNEL_ID: ${{ secrets.DC_CHANNEL_ID }}
+          DC_TOKEN: ${{ secrets.DC_TOKEN }}
