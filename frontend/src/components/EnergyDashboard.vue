@@ -15,7 +15,10 @@
       </div>
       <h2 class="error-title">Unable to Load Data</h2>
       <p class="error-message">{{ error }}</p>
-      <button @click="retryLoadData" class="retry-button">
+      <button
+        @click="() => retryLoadData(dayjs().subtract(selectedPeriod, 'day'), dayjs())"
+        class="retry-button"
+      >
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
         </svg>
@@ -41,12 +44,7 @@
           <h1 class="dashboard-title">Energy Usage Monitor</h1>
           <p class="dashboard-subtitle">Track and analyze energy consumption patterns</p>
         </div>
-        <div class="header-status">
-          <div class="status-indicator">
-            <div class="status-dot"></div>
-            <span class="status-text">Live Data</span>
-          </div>
-        </div>
+        
       </header>
 
       <div class="period-controls" style="margin-bottom: 16px;">
@@ -56,6 +54,8 @@
           v-model="selectedPeriod"
           class="period-selector"
         >
+          <option :value="-1">This Period</option>
+            <option :value="-2">Previous Period</option>
           <option :value="7">Last 7 days</option>
           <option :value="30">Last 30 days</option>
           <option :value="90">Last 90 days</option>
@@ -132,22 +132,28 @@ import MetricsCard from './MetricsCard.vue';
 import EnergyChart from './EnergyChart.vue';
 import { fetchEnergyDataFromGitHub, calculateMetrics } from '../utils/energyData';
 import type { EnergyUsageRecord, EnergyMetrics } from '../types/energy';
+import dayjs from 'dayjs';
 
 const energyData = ref<EnergyUsageRecord[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const lastUpdated = ref<string>('');
 
-const selectedPeriod = ref(30);
-const filteredData = computed(() => energyData.value.slice(-selectedPeriod.value));
+const selectedPeriod = ref(-1); // -1: this period, -2: previous period, N: last N days
+const filteredData = computed(() => {
+  if (selectedPeriod.value === -1 || selectedPeriod.value === -2) {
+    return energyData.value;
+  }
+  return energyData.value.slice(-selectedPeriod.value);
+});
 const filteredMetrics = computed<EnergyMetrics>(() => calculateMetrics(filteredData.value));
 
-const loadData = async () => {
+const loadData = async (startDate: dayjs.Dayjs, endDate: dayjs.Dayjs) => {
   isLoading.value = true;
   error.value = null;
   
   try {
-    const data = await fetchEnergyDataFromGitHub();
+    const data = await fetchEnergyDataFromGitHub(startDate, endDate);
     energyData.value = data;
     lastUpdated.value = new Date().toLocaleString();
   } catch (err) {
@@ -158,12 +164,43 @@ const loadData = async () => {
   }
 };
 
-const retryLoadData = () => {
-  loadData();
+const retryLoadData = (startDate: dayjs.Dayjs, endDate: dayjs.Dayjs) => {
+  loadData(startDate, endDate);
 };
 
+
+function getHeadDate(date: dayjs.Dayjs): dayjs.Dayjs {
+  if (date.date() <= 23) {
+    return date.subtract(1, 'month').date(24);
+  }
+  return date.date(24);
+}
+
+function getPeriodDates(period: number): { start: dayjs.Dayjs, end: dayjs.Dayjs } {
+  const today = dayjs();
+  if (period === -1) {
+    // This period: from last 23rd to today
+    return { start: getHeadDate(today), end: today };
+  } else if (period === -2) {
+    // Previous period: from previous 23rd to last 23rd
+    const end = getHeadDate(today).subtract(1, 'day');
+    const start = getHeadDate(end.subtract(1, 'day'));
+    return { start, end };
+  } else {
+    // Last N days
+    return { start: today.subtract(period, 'day'), end: today };
+  }
+}
+
 onMounted(() => {
-  loadData();
+  const { start, end } = getPeriodDates(selectedPeriod.value);
+  loadData(start, end);
+});
+
+import { watch } from 'vue';
+watch(selectedPeriod, (newVal) => {
+  const { start, end } = getPeriodDates(newVal);
+  loadData(start, end);
 });
 </script>
 
