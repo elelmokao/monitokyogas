@@ -53,3 +53,26 @@ jobs:
           git add backend/csv_store/*.csv
           git commit -m "Update CSV files [skip ci]" || echo "No changes to commit"
           git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git data
+
+  run-dc-notice-bot:
+    needs: run-fetch-electricity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Run dcNoticeBot
+        working-directory: backend
+        run: npx tsx dcNoticeBot.ts
+        env:
+          DC_CHANNEL_ID=${{ secrets.DC_CHANNEL_ID }}
+          DC_TOKEN=${{ secrets.DC_TOKEN }}
