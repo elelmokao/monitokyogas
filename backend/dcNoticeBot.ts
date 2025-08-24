@@ -27,7 +27,7 @@ async function calculateUsage(): Promise<{ yesterdayUsage: number; total: number
     const csvUrl = getCsvUrl(dayjs().format('YYYY-MM-DD'));
     const response = await fetch(csvUrl);
     const csvContent = await response.text();
-
+    console.log(`Fetching energy data from ${csvUrl}`);
     if (!response.ok) {
         throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
     }
