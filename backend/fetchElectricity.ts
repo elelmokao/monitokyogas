@@ -5,6 +5,7 @@ import { createObjectCsvWriter } from "csv-writer";
 import dayjs from "dayjs";
 import dotenv from 'dotenv';
 import { loginAndGetCookie } from "./loginAndGetCookie";
+import { group } from "console";
 const cookieFilePath = path.join(__dirname, "cookie_store", "cookie.txt");
 
 
@@ -17,9 +18,8 @@ function getCsvFilePath(dateStr: string): string {
   let startMonth = date.month();
   let startYear = date.year();
   if (date.date() >= 24) { // Belong to next month
-    date.add(1, 'month');
-    startMonth = date.month();
-    startYear = date.year();
+    startMonth = date.add(1, 'month').month();
+    startYear = date.add(1, 'month').year();
   }
   // 區間起始年月
   const fileMonth = (startMonth).toString().padStart(2, '0');
@@ -91,6 +91,7 @@ async function appendToCSV(data: UsageData[]) {
   for (const d of data) {
     const dateStr = dayjs(d.date).add(1, "day").format("YYYY-MM-DD");
     const filePath = getCsvFilePath(dateStr);
+    console.log(`Date ${dateStr} goes to file ${filePath}`);
     if (!groups[filePath]) groups[filePath] = [];
     groups[filePath].push({ ...d, date: dateStr });
   }
