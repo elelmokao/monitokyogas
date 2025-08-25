@@ -76,3 +76,4 @@ jobs:
         env:
           DC_CHANNEL_ID: ${{ secrets.DC_CHANNEL_ID }}
           DC_TOKEN: ${{ secrets.DC_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
