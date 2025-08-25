@@ -118,7 +118,7 @@
       </div>
       <div class="data-info">
         <p class="data-source">
-          Data source: <a href="https://github.com/elelmokao/monitokyogas/blob/main/backend/csv_store/electricity.csv" target="_blank" rel="noopener noreferrer">GitHub CSV</a>
+          Data source: <a :href="githubCsvUrl" target="_blank" rel="noopener noreferrer">GitHub CSV</a>
           • Last updated: {{ lastUpdated }}
         </p>
       </div>
@@ -138,6 +138,11 @@ const energyData = ref<EnergyUsageRecord[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const lastUpdated = ref<string>('');
+
+const githubCsvUrl = computed(() => {
+  const githubName = import.meta.env.VITE_GITHUB_USERNAME || 'your-github-username';
+  return `https://github.com/${githubName}/monitokyogas/blob/main/backend/csv_store/electricity.csv`;
+});
 
 const selectedPeriod = ref(-1); // -1: this period, -2: previous period, N: last N days
 const filteredData = computed(() => {

@@ -1,6 +1,4 @@
 import { Client, GatewayIntentBits, TextChannel } from "discord.js";
-import fs from "fs";
-import csv from "csv-parser";
 import dotenv from "dotenv";
 import dayjs from "dayjs";
 
@@ -9,7 +7,7 @@ dotenv.config();
 const DISCORD_TOKEN = process.env.DC_TOKEN!;
 const DISCORD_CHANNEL_ID = process.env.DC_CHANNEL_ID!; // 你要發送的頻道
 const LIMIT = 120; // 每月電量限制 kWh
-
+const GITHUB_USERNAME = process.env.GITHUB_ACTOR || "unknown";
 
 function getCsvUrl(dateStr: string): string {
   // Determine the correct CSV file based on the date
@@ -17,9 +15,9 @@ function getCsvUrl(dateStr: string): string {
   // Otherwise, use the current month's file
   const date = dayjs(dateStr);
   if (date.date() <= 23) {
-    return `https://raw.githubusercontent.com/elelmokao/monitokyogas/data/backend/csv_store/electricity_${date.subtract(1, 'month').format('YYYY-MM')}.csv`;
+    return `https://raw.githubusercontent.com/${GITHUB_USERNAME}/monitokyogas/data/backend/csv_store/electricity_${date.subtract(1, 'month').format('YYYY-MM')}.csv`;
   } 
-  return `https://raw.githubusercontent.com/elelmokao/monitokyogas/data/backend/csv_store/electricity_${date.format('YYYY-MM')}.csv`;
+  return `https://raw.githubusercontent.com/${GITHUB_USERNAME}/monitokyogas/data/backend/csv_store/electricity_${date.format('YYYY-MM')}.csv`;
 }
 
 // 計算本月累積用電量
@@ -65,6 +63,10 @@ async function calculateUsage(): Promise<{ yesterdayUsage: number; total: number
 }
 
 async function main() {
+  if (!DISCORD_TOKEN || !DISCORD_CHANNEL_ID || GITHUB_USERNAME === "unknown") {
+    console.error("Missing DISCORD_TOKEN or DISCORD_CHANNEL_ID in environment variables.");
+    return;
+  }
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   client.once("ready", async () => {

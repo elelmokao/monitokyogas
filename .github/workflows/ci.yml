@@ -33,6 +33,9 @@ jobs:
         working-directory: frontend
         run: npm install
 
+      - name: Set GitHub username for frontend
+        run: echo "VITE_GITHUB_USERNAME=${GITHUB_ACTOR}" > frontend/.env
+
       - name: Build project
         working-directory: frontend
         run: npm run build
