@@ -141,8 +141,13 @@ function getCsvUrl(dateStr: string): string {
   // If the day is <= 23, use the previous month's file
   // Otherwise, use the current month's file
   const date = dayjs(dateStr);
+  const githubUser = import.meta.env.VITE_GITHUB_USERNAME || "undefined";
+  console.log("GitHub user:", githubUser);
+  if (githubUser === "undefined") {
+    return "";
+  }
   if (date.date() <= 23) {
-    return `https://raw.githubusercontent.com/elelmokao/monitokyogas/data/backend/csv_store/electricity_${date.subtract(1, 'month').format('YYYY-MM')}.csv`;
+  return `https://raw.githubusercontent.com/${githubUser}/monitokyogas/data/backend/csv_store/electricity_${date.subtract(1, 'month').format('YYYY-MM')}.csv`;
   } 
-  return `https://raw.githubusercontent.com/elelmokao/monitokyogas/data/backend/csv_store/electricity_${date.format('YYYY-MM')}.csv`;
+  return `https://raw.githubusercontent.com/${githubUser}/monitokyogas/data/backend/csv_store/electricity_${date.format('YYYY-MM')}.csv`;
 }
