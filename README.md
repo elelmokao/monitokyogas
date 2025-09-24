@@ -16,7 +16,7 @@ It can be runned in two ways via GitHub Actions or locally.
 ```bash
 git clone https://github.com/elelmokao/monitokyogas
 ```
-### 2. **Set environment variables**: 
+### 2. **Set environment variables**:
 ```env
 TOKYOGAS_EMAIL=email
 TOKYOGAS_PASSWORD=password
@@ -48,6 +48,7 @@ If the crawler runs successfully, you will receive a notification in your specif
 * 昨日用電量：**1.2 kWh**
 * 本月已用電量：**3.4 kWh**
 * 剩餘可用電量：**115.4 kWh** / (120 kWh)
+* 預算用電量：**1.0 kWh**
 ```
 
 ---

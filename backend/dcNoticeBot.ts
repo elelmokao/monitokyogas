@@ -32,7 +32,7 @@ async function calculateUsage(): Promise<{ yesterdayUsage: number; total: number
 
     if (!csvContent.trim()) {
         console.warn(`CSV file from ${csvUrl} is empty`);
-        return { yesterdayUsage: -999, total: -999 };
+        return { yesterdayUsage: -999, total: -999, count: 0 };
     }
 
     // Parse CSV content and sum usage
@@ -78,9 +78,9 @@ async function main() {
       const usageResult = await calculateUsage();
       const { yesterdayUsage, total: totalUsage, count } = usageResult;
       const remaining = LIMIT - totalUsage;
-      const budget = 4 * count - totalUsage;
+      const budget = Math.min(4 * count, 120) - totalUsage;
 
-      const message = `⚡️**Tokyo Gas Report @ ${dayjs().format('YYYY-MM-DD')}**\n* 昨日用電量：**${yesterdayUsage.toFixed(1)} kWh**\n* 本月已用電量：**${totalUsage.toFixed(1)} kWh**\n* 剩餘可用電量：**${remaining.toFixed(1)} kWh** / (${LIMIT} kWh)\n* 預算用電量：**${budget.toFixed(1)} kWh** (4 kWh x ${count} 天)\n`;
+      const message = `⚡️**Tokyo Gas Report @ ${dayjs().format('YYYY-MM-DD')}**\n* 昨日用電量：**${yesterdayUsage.toFixed(1)} kWh**\n* 本月已用電量：**${totalUsage.toFixed(1)} kWh**\n* 剩餘可用電量：**${remaining.toFixed(1)} kWh** / (${LIMIT} kWh)\n* 預算用電量：**${budget.toFixed(1)} kWh**\n`;
       const channel = (await client.channels.fetch(
         DISCORD_CHANNEL_ID
       )) as TextChannel;
