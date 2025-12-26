@@ -22,7 +22,7 @@ function getCsvFilePath(dateStr: string): string {
     startYear = date.add(1, 'month').year();
   }
   // 區間起始年月
-  const fileMonth = (startMonth).toString().padStart(2, '0');
+  const fileMonth = (startMonth + 1).toString().padStart(2, '0');
   const fileYear = startYear;
   return path.join("./csv_store/", `electricity_${fileYear}-${fileMonth}.csv`);
 }
