@@ -18,11 +18,14 @@ function getCsvFilePath(dateStr: string): string {
   let startMonth = date.month();
   let startYear = date.year();
   if (date.date() >= 24) { // Belong to next month
-    startMonth = date.add(1, 'month').month();
-    startYear = date.add(1, 'month').year();
+    const nextMonth = date.add(1, 'month');
+    startMonth = nextMonth.month() + 1; // 1-based month (1=Jan, 12=Dec)
+    startYear = nextMonth.year();
+  } else {
+    startMonth = date.month() + 1; // 1-based month
   }
   // 區間起始年月
-  const fileMonth = (startMonth + 1).toString().padStart(2, '0');
+  const fileMonth = (startMonth).toString().padStart(2, '0');
   const fileYear = startYear;
   return path.join("./csv_store/", `electricity_${fileYear}-${fileMonth}.csv`);
 }
