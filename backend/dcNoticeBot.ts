@@ -14,7 +14,7 @@ function getCsvUrl(dateStr: string): string {
   // If the day is <= 23, use the previous month's file
   // Otherwise, use the current month's file
   const date = dayjs(dateStr);
-  if (date.date() >= 24) {
+  if (date.date() >= 25) {
     return `https://raw.githubusercontent.com/${GITHUB_USERNAME}/monitokyogas/data/backend/csv_store/electricity_${date.add(1, 'month').format('YYYY-MM')}.csv`;
   }
   return `https://raw.githubusercontent.com/${GITHUB_USERNAME}/monitokyogas/data/backend/csv_store/electricity_${date.format('YYYY-MM')}.csv`;
