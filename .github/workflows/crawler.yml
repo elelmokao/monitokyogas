@@ -2,8 +2,8 @@ name: TokyoGas Usage Crawler
 
 on:
   push:
-    branches-ignore:
-      - data
+    branches:
+      - main
   schedule:
     - cron: '30 4 * * *'
   workflow_dispatch:
@@ -14,6 +14,7 @@ permissions:
 
 jobs:
   run-fetch-electricity:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +40,7 @@ jobs:
           CONTRACT_NUMBER: ${{ secrets.CONTRACT_NUMBER }}
 
       - name: Push the csv file to the repository
-        if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+        if: github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -60,7 +61,7 @@ jobs:
           git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:data
 
   run-dc-notice-bot:
-    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+    if: github.ref == 'refs/heads/main'
     needs: run-fetch-electricity
     runs-on: ubuntu-latest
     steps:
