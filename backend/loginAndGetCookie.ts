@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config()
 
 const HOME_URL = "https://members.tokyo-gas.co.jp/";
+const LOGIN_URL = "https://members.tokyo-gas.co.jp/api/mtg/v1/auth/login";
 const MEMBERS_HOST = "members.tokyo-gas.co.jp";
 const LOGIN_ID_SELECTOR = 'input[name="loginId"]';
 const PASSWORD_SELECTOR = 'input[name="password"]';
@@ -29,18 +30,11 @@ export async function loginAndGetCookie(): Promise<string> {
   page.setDefaultTimeout(60000);
 
   try {
-    // Visit the login page
+    // Visit the top page first so cookies and redirects follow the same path as a normal user.
     await page.goto(HOME_URL, { waitUntil: "domcontentloaded" });
 
-    // Click the login button
-    const goToLoginButtonSelector = 'a[href="/api/mtg/v1/auth/login"]';
-
-    await page.waitForSelector(goToLoginButtonSelector, { visible: true, timeout: 15000 });
-
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 60000 }),
-      page.click(goToLoginButtonSelector),
-    ]);
+    // The landing page DOM is unstable in CI, so navigate to the login entrypoint directly.
+    await page.goto(LOGIN_URL, { waitUntil: "domcontentloaded" });
     await page.waitForSelector(LOGIN_ID_SELECTOR, { visible: true, timeout: 30000 });
 
     // Fill in email and password
