@@ -39,11 +39,8 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: |
-          corepack enable
-          pnpm install --frozen-lockfile
-          pnpm exec puppeteer browsers install chrome
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: false
+          npm install
+          npx puppeteer browsers install chrome
 
       - name: Run fetchElectricity
         working-directory: backend
