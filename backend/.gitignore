@@ -1,6 +1,4 @@
-**/.gitignore
 node_modules
 *.txt
 .env
 **/.DS_Store
-**/pnpm-lock.yaml
