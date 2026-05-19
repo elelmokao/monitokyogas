@@ -20,7 +20,7 @@
     "express": "^4.18.2",
     "node-fetch": "^2.6.7",
     "projen": "^0.95.1",
-    "puppeteer": "21.11.0"
+    "puppeteer": "^25.0.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

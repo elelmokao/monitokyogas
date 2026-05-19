@@ -29,12 +29,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
+          cache: 'pnpm'
+          cache-dependency-path: backend/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: backend
         run: |
-          npm install
-          node node_modules/puppeteer/install.mjs
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm exec puppeteer browsers install chrome
         env:
           PUPPETEER_SKIP_DOWNLOAD: false
 
@@ -67,10 +70,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
+          cache: 'pnpm'
+          cache-dependency-path: backend/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: backend
-        run: npm install
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
 
       - name: Run dcNoticeBot
         working-directory: backend
