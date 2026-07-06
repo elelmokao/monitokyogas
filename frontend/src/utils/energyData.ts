@@ -1,6 +1,9 @@
-import { EnergyUsageRecord, EnergyMetrics } from '../types/energy';
+import { EnergyUsageRecord, EnergyMetrics, EnergyDataResponse } from '../types/energy';
 import dayjs from 'dayjs';
 
+const DEFAULT_GITHUB_USERNAME = 'elelmokao';
+const DEFAULT_REPO = 'monitokyogas';
+const DEFAULT_DATA_BRANCH = 'data';
 
 export const calculateMetrics = (data: EnergyUsageRecord[]): EnergyMetrics => {
   if (data.length === 0) {
@@ -25,15 +28,46 @@ export const calculateMetrics = (data: EnergyUsageRecord[]): EnergyMetrics => {
   };
 };
 
-// Utility function to sort records by date
 function sortRecordsByDate(records: EnergyUsageRecord[]): EnergyUsageRecord[] {
   return records.slice().sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
-// Parse CSV content from GitHub
-export const parseCSV = (csvContent: string): EnergyUsageRecord[] => {
+function parseCsvLine(line: string): string[] {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"';
+      i++;
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+export const parseCSV = (csvContent: string, sourceFile?: string): EnergyUsageRecord[] => {
   try {
-    const lines = csvContent.trim().split('\n');
+    const lines = csvContent.trim().split(/\r?\n/);
     if (lines.length <= 1) {
       throw new Error('CSV file is empty or contains only headers');
     }
@@ -51,11 +85,11 @@ export const parseCSV = (csvContent: string): EnergyUsageRecord[] => {
       const line = lines[i].trim();
       if (!line) continue; // Skip empty lines
       
-      const values = line.split(',').map(v => v.trim());
+      const values = parseCsvLine(line);
       if (values.length < 2) continue; // Skip incomplete rows
       
-      const dateStr = values[0].replace(/"/g, ''); // Remove quotes if present
-      const usageStr = values[1].replace(/"/g, '');
+      const dateStr = values[0];
+      const usageStr = values[1];
       
       // Parse date
       const date = new Date(dateStr);
@@ -73,11 +107,11 @@ export const parseCSV = (csvContent: string): EnergyUsageRecord[] => {
       
       records.push({
         date: date.toISOString().split('T')[0],
-        usage: Math.round(usage * 100) / 100
+        usage: Math.round(usage * 100) / 100,
+        sourceFile,
       });
     }
     
-    // Sort by date using utility
     const sortedRecords = sortRecordsByDate(records);
     return sortedRecords;
   } catch (error) {
@@ -86,20 +120,50 @@ export const parseCSV = (csvContent: string): EnergyUsageRecord[] => {
   }
 };
 
+function getRawCsvBaseUrl(): string {
+  const githubUser = import.meta.env.VITE_GITHUB_USERNAME || DEFAULT_GITHUB_USERNAME;
+  const repo = import.meta.env.VITE_GITHUB_REPO || DEFAULT_REPO;
+  const branch = import.meta.env.VITE_DATA_BRANCH || DEFAULT_DATA_BRANCH;
+
+  return `https://raw.githubusercontent.com/${githubUser}/${repo}/${branch}/backend/csv_store`;
+}
+
+export function getCsvFileNameForDate(dateStr: string): string {
+  const date = dayjs(dateStr);
+  const fileMonth = date.date() >= 24 ? date.add(1, 'month') : date;
+  return `electricity_${fileMonth.format('YYYY-MM')}.csv`;
+}
+
+export function buildRawCsvUrl(fileName: string): string {
+  return `${getRawCsvBaseUrl()}/${fileName}`;
+}
+
+function getExpectedDates(startDate: dayjs.Dayjs, endDate: dayjs.Dayjs): string[] {
+  const dates: string[] = [];
+
+  for (
+    let currentDate = startDate.startOf('day');
+    currentDate.isSame(endDate, 'day') || currentDate.isBefore(endDate, 'day');
+    currentDate = currentDate.add(1, 'day')
+  ) {
+    dates.push(currentDate.format('YYYY-MM-DD'));
+  }
+
+  return dates;
+}
+
 export const fetchEnergyDataFromGitHub = async (
   startDate: dayjs.Dayjs,
   endDate: dayjs.Dayjs
-): Promise<EnergyUsageRecord[]> => {
+): Promise<EnergyDataResponse> => {
   const allData: EnergyUsageRecord[] = [];
-  const csvUrls: Set<string> = new Set();
-  for (let date = endDate; date.isAfter(startDate) || date.isSame(startDate); date = date.subtract(1, 'month')) {
-    const url = getCsvUrl(date.format('YYYY-MM-DD'));
-      csvUrls.add(url);
-  }
-  csvUrls.add(getCsvUrl(startDate.format('YYYY-MM-DD')));
-    
+  const expectedDates = getExpectedDates(startDate, endDate);
+  const csvFiles = new Set(expectedDates.map(getCsvFileNameForDate));
+  const attemptedFiles = Array.from(csvFiles).sort();
+  const loadedFiles: string[] = [];
 
-  for (const url of csvUrls) {
+  for (const fileName of attemptedFiles) {
+    const url = buildRawCsvUrl(fileName);
     console.log(`Fetching energy data from ${url}`);
     try {
       const response: Response = await fetch(url);
@@ -114,40 +178,35 @@ export const fetchEnergyDataFromGitHub = async (
         continue;
       }
       
-      let data: EnergyUsageRecord[] = parseCSV(csvContent);
+      let data: EnergyUsageRecord[] = parseCSV(csvContent, fileName);
       allData.push(...data);
+      loadedFiles.push(fileName);
     } catch (error) {
       console.log(`Error fetching energy data from ${url}:`, error);
     }
   }
-  for (
-    let currentDate = startDate;
-    currentDate.isSame(endDate) || currentDate.isBefore(endDate);
-    currentDate = currentDate.add(1, 'day')
-  ) {
-    const dateStr = currentDate.format('YYYY-MM-DD');
-    if (!allData.find(d => d.date === dateStr)) {
-      allData.push({ date: dateStr, usage: 0 });
-      console.log(`Added missing date ${dateStr} with 0 usage`);
+
+  const dedupedByDate = new Map<string, EnergyUsageRecord>();
+  for (const record of allData) {
+    if (
+      dayjs(record.date).isBefore(startDate, 'day') ||
+      dayjs(record.date).isAfter(endDate, 'day')
+    ) {
+      continue;
     }
-  }
-  allData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  return allData;
-}
-
-function getCsvUrl(dateStr: string): string {
-  // Determine the correct CSV file based on the date
-  // If the day is <= 23, use the previous month's file
-  // Otherwise, use the current month's file
-  const date = dayjs(dateStr);
-  const githubUser = import.meta.env.VITE_GITHUB_USERNAME || "undefined";
-  console.log("GitHub user:", githubUser);
-  if (githubUser === "undefined") {
-    return "";
+    dedupedByDate.set(record.date, record);
   }
-  if (date.date() <= 23) {
-  return `https://raw.githubusercontent.com/${githubUser}/monitokyogas/data/backend/csv_store/electricity_${date.subtract(1, 'month').format('YYYY-MM')}.csv`;
-  } 
-  return `https://raw.githubusercontent.com/${githubUser}/monitokyogas/data/backend/csv_store/electricity_${date.format('YYYY-MM')}.csv`;
+
+  const records = sortRecordsByDate(Array.from(dedupedByDate.values()));
+  const loadedDates = new Set(records.map(record => record.date));
+  const missingDates = expectedDates.filter(date => !loadedDates.has(date));
+
+  return {
+    records,
+    expectedDates,
+    attemptedFiles,
+    loadedFiles,
+    missingDates,
+  };
 }
