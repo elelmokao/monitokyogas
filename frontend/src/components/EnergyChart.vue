@@ -1,16 +1,24 @@
 <template>
   <div class="chart-container">
     <div class="chart-header">
-      <h2 class="chart-title">Energy Usage Trends</h2>
-      <!-- Period selector moved to dashboard -->
+      <div>
+        <h2 class="chart-title">{{ title }}</h2>
+        <p class="chart-subtitle">{{ subtitle }}</p>
+      </div>
+      <div class="chart-legend">
+        <span><i class="legend-dot normal"></i>Normal</span>
+        <span><i class="legend-dot high"></i>High</span>
+        <span><i class="legend-dot missing"></i>Missing</span>
+      </div>
     </div>
     <div class="chart-wrapper">
       <Bar
-        v-if="chartData"
+        v-if="chartRows.length > 0"
         :data="chartData"
         :options="chartOptions"
         class="energy-chart"
       />
+      <div v-else class="empty-chart">No expected days in this range.</div>
     </div>
   </div>
 </template>
@@ -41,41 +49,77 @@ ChartJS.register(
 
 interface Props {
   data: EnergyUsageRecord[];
+  expectedDates?: string[];
+  threshold?: number;
+  title?: string;
+  subtitle?: string;
 }
 
-const props = defineProps<Props>();
-const filteredData = computed(() => {
-  return props.data;
+const props = withDefaults(defineProps<Props>(), {
+  threshold: 4,
+  title: 'Daily Consumption',
+  subtitle: 'kWh recorded by backend CSV update',
+});
+
+const chartRows = computed(() => {
+  const dates = props.expectedDates && props.expectedDates.length > 0
+    ? props.expectedDates
+    : props.data.map(record => record.date);
+  const recordsByDate = new Map(props.data.map(record => [record.date, record]));
+
+  return dates.map(date => {
+    const record = recordsByDate.get(date);
+
+    return {
+      date,
+      usage: record?.usage ?? null,
+      missing: !record,
+    };
+  });
 });
 
 const chartData = computed(() => {
-  const data = filteredData.value;
+  const rows = chartRows.value;
+  const maxUsage = Math.max(...rows.map(row => row.usage ?? 0), props.threshold, 1);
+  const missingMarkerValue = Math.round(Math.max(0.12, maxUsage * 0.06) * 100) / 100;
   
-  // Set bar color: red if value > 4, else blue
-  const backgroundColors = data.map(record =>
-    record.usage > 4 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(16, 185, 129, 0.7)'
+  const backgroundColors = rows.map(row =>
+    row.usage !== null && row.usage > props.threshold ? 'rgba(220, 38, 38, 0.8)' : 'rgba(37, 99, 235, 0.75)'
   );
-  const borderColors = data.map(record =>
-    record.usage > 4 ? '#dc2626' : '#10b981'
+  const borderColors = rows.map(row =>
+    row.usage !== null && row.usage > props.threshold ? '#b91c1c' : '#1d4ed8'
   );
-  const hoverBackgroundColors = data.map(record =>
-    record.usage > 4 ? '#b91c1c' : '#10b981'
+  const hoverBackgroundColors = rows.map(row =>
+    row.usage !== null && row.usage > props.threshold ? '#991b1b' : '#1d4ed8'
   );
-  const hoverBorderColors = data.map(record =>
-    record.usage > 4 ? '#991b1b' : '#10b981'
+  const hoverBorderColors = rows.map(row =>
+    row.usage !== null && row.usage > props.threshold ? '#7f1d1d' : '#1e40af'
   );
+
   return {
-    labels: data.map(record => format(new Date(record.date), 'MMM dd')),
+    labels: rows.map(row => format(new Date(`${row.date}T00:00:00`), 'MMM dd')),
     datasets: [
       {
         label: 'Energy Usage (kWh)',
-        data: data.map(record => record.usage),
+        data: rows.map(row => row.usage),
         backgroundColor: backgroundColors,
         borderColor: borderColors,
         borderWidth: 2,
         borderRadius: 6,
         hoverBackgroundColor: hoverBackgroundColors,
         hoverBorderColor: hoverBorderColors,
+        grouped: false,
+        order: 1,
+      },
+      {
+        label: 'Missing data',
+        data: rows.map(row => row.missing ? missingMarkerValue : null),
+        backgroundColor: 'rgba(217, 119, 6, 0.35)',
+        borderColor: '#d97706',
+        borderWidth: 2,
+        borderRadius: 6,
+        grouped: false,
+        order: 2,
       }
     ]
   };
@@ -93,18 +137,27 @@ const chartOptions = computed(() => ({
       display: false
     },
     tooltip: {
-      backgroundColor: '#1e293b',
-      titleColor: '#f1f5f9',
-      bodyColor: '#e2e8f0',
-      borderColor: '#334155',
+      backgroundColor: '#111827',
+      titleColor: '#f9fafb',
+      bodyColor: '#e5e7eb',
+      borderColor: '#374151',
       borderWidth: 1,
-      cornerRadius: 8,
+      cornerRadius: 6,
       displayColors: false,
+      filter: function(context: any) {
+        return context.raw !== null && context.raw !== undefined;
+      },
       callbacks: {
         title: function(tooltipItems: any) {
           return tooltipItems[0].label;
         },
         label: function(context: any) {
+          if (context.dataset.label === 'Missing data') {
+            return 'Missing data: no CSV row';
+          }
+          if (context.parsed.y == null) {
+            return '';
+          }
           return `${context.parsed.y.toFixed(2)} kWh`;
         }
       }
@@ -113,7 +166,7 @@ const chartOptions = computed(() => ({
   scales: {
     x: {
       grid: {
-        color: '#f1f5f9',
+        color: '#eef2f7',
         drawBorder: false,
       },
       ticks: {
@@ -127,7 +180,7 @@ const chartOptions = computed(() => ({
     y: {
       beginAtZero: true,
       grid: {
-        color: '#f1f5f9',
+        color: '#eef2f7',
         drawBorder: false,
       },
       ticks: {
@@ -148,48 +201,66 @@ const chartOptions = computed(() => ({
 
 <style scoped>
 .chart-container {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: #ffffff;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  padding: 18px;
+  height: 100%;
 }
 
 .chart-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .chart-title {
+  color: #101827;
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
   margin: 0;
 }
 
-.period-selector {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.chart-subtitle {
+  color: #64748b;
+  font-size: 12px;
+  margin: 4px 0 0;
 }
 
-.period-selector:hover {
-  border-color: #1e293b;
-  background: #f0fdf4;
+.chart-legend {
+  color: #64748b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.period-selector:focus {
-  outline: none;
-  border-color: #1e293b;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+.chart-legend span {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+}
+
+.legend-dot {
+  border-radius: 999px;
+  display: inline-block;
+  height: 8px;
+  width: 8px;
+}
+
+.legend-dot.normal {
+  background: #2563eb;
+}
+
+.legend-dot.high {
+  background: #dc2626;
+}
+
+.legend-dot.missing {
+  background: #d97706;
 }
 
 .chart-wrapper {
@@ -197,15 +268,23 @@ const chartOptions = computed(() => ({
   position: relative;
 }
 
+.empty-chart {
+  align-items: center;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
   .chart-container {
-    padding: 12px;
+    padding: 14px;
   }
   
   .chart-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
     margin-bottom: 16px;
   }
   
@@ -215,11 +294,6 @@ const chartOptions = computed(() => ({
   
   .chart-wrapper {
     height: 280px;
-  }
-  
-  .period-selector {
-    font-size: 13px;
-    padding: 6px 10px;
   }
 }
 
@@ -238,18 +312,10 @@ const chartOptions = computed(() => ({
 }
 
 @media (min-width: 1200px) {
-  .chart-container {
-    padding: 24px;
-  }
-  
   .chart-title {
     font-size: 20px;
   }
-  
-  .chart-header {
-    margin-bottom: 24px;
-  }
-  
+
   .chart-wrapper {
     height: 400px;
   }

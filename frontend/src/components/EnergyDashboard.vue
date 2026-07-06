@@ -1,649 +1,873 @@
 <template>
-  <div class="dashboard">
-    <!-- Loading State -->
-    <div v-if="isLoading" class="loading-container">
-      <div class="loading-spinner"></div>
-      <p class="loading-text">Loading energy data...</p>
-    </div>
-
-    <!-- Error State -->
-    <div v-else-if="error" class="error-container">
-      <div class="error-icon">
-        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-        </svg>
+  <main class="monitor-page">
+    <header class="monitor-header">
+      <div>
+        <p class="eyebrow">Tokyo Gas CSV Monitor</p>
+        <h1>Energy Consumption</h1>
+        <p class="subtitle">Daily electricity usage loaded from the backend CSV store.</p>
       </div>
-      <h2 class="error-title">Unable to Load Data</h2>
-      <p class="error-message">{{ error }}</p>
-      <button
-        @click="() => retryLoadData(dayjs().subtract(selectedPeriod, 'day'), dayjs())"
-        class="retry-button"
-      >
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-        Retry
-      </button>
-    </div>
 
-    <!-- No Data State -->
-    <div v-else-if="energyData.length === 0" class="no-data-container">
-      <div class="no-data-icon">
-        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-        </svg>
+      <div class="status-pill" :class="monitorStatus.tone">
+        <span class="status-dot"></span>
+        <span>{{ monitorStatus.label }}</span>
       </div>
-      <h2 class="no-data-title">No Data Available</h2>
-      <p class="no-data-message">No energy usage records were found. Please check if the data source contains valid records.</p>
-    </div>
+    </header>
 
-    <!-- Main Dashboard Content -->
-    <div v-else class="dashboard-content">
-      <header class="dashboard-header">
-        <div class="header-content">
-          <h1 class="dashboard-title">Energy Usage Monitor</h1>
-          <p class="dashboard-subtitle">Track and analyze energy consumption patterns</p>
-        </div>
-        
-      </header>
-
-      <div class="period-controls" style="margin-bottom: 16px;">
-        <label for="period-select" class="period-label">Period:</label>
-        <select
-          id="period-select"
-          v-model="selectedPeriod"
-          class="period-selector"
-        >
-          <option :value="-1">This Period</option>
-            <option :value="-2">Previous Period</option>
-          <option :value="7">Last 7 days</option>
-          <option :value="30">Last 30 days</option>
-          <option :value="90">Last 90 days</option>
+    <section class="control-bar" aria-label="Monitor controls">
+      <label class="field">
+        <span>Range</span>
+        <select v-model="selectedRange" class="select-input">
+          <option value="current">Current billing period</option>
+          <option value="previous">Previous billing period</option>
+          <option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="180">Last 180 days</option>
         </select>
-      </div>
-      <div class="metrics-and-charts">
-        <div class="metrics-grid">
-          <MetricsCard
-            title="Total Usage"
-            :value="filteredMetrics.totalUsage"
-            :subtitle="`Over ${filteredMetrics.totalDays} days`"
-          >
-            <template #icon>
-              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-              </svg>
-            </template>
-          </MetricsCard>
+      </label>
 
-          <MetricsCard
-            title="Average Daily"
-            :value="filteredMetrics.averageUsage"
-            subtitle="Per day consumption"
-          >
-            <template #icon>
-              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
-            </template>
-          </MetricsCard>
+      <label class="field compact">
+        <span>High usage</span>
+        <input v-model.number="highUsageThreshold" class="number-input" type="number" min="0" step="0.1" />
+      </label>
 
-          <MetricsCard
-            title="Peak Usage"
-            :value="filteredMetrics.peakUsage"
-            subtitle="Highest recorded"
-          >
-            <template #icon>
-              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-              </svg>
-            </template>
-          </MetricsCard>
+      <label class="field compact">
+        <span>Budget</span>
+        <input v-model.number="budgetInput" class="number-input" type="number" min="0" step="1" />
+      </label>
 
-          <MetricsCard
-            title="Lowest Usage"
-            :value="filteredMetrics.lowestUsage"
-            subtitle="Most efficient day"
-          >
-            <template #icon>
-              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
-              </svg>
-            </template>
-          </MetricsCard>
+      <button class="refresh-button" type="button" @click="loadData">Refresh</button>
+    </section>
+
+    <section v-if="error" class="notice danger">
+      <strong>Load failed</strong>
+      <span>{{ error }}</span>
+    </section>
+
+    <section v-else-if="isLoading" class="notice">
+      <strong>Loading CSV data</strong>
+      <span>Fetching monthly files from GitHub raw content.</span>
+    </section>
+
+    <template v-else>
+      <section class="metrics-grid" aria-label="Energy metrics">
+        <MetricsCard
+          title="Used So Far"
+          :value="metrics.totalUsage"
+          :subtitle="`${metrics.totalDays} recorded days in ${rangeLabel}`"
+          :badge="`${completeness}% complete`"
+          :tone="usageTone"
+        />
+        <MetricsCard
+          title="Latest Reading"
+          :value="latestRecord ? latestRecord.usage : 'No data'"
+          :unit="latestRecord ? 'kWh' : ''"
+          :subtitle="latestRecord ? latestRecord.date : 'CSV has no records in this range'"
+          :tone="latestTone"
+        />
+        <MetricsCard
+          title="Estimated Total"
+          :value="projectedUsage"
+          :subtitle="`${remainingBudgetLabel} against ${periodBudget.toFixed(0)} kWh budget`"
+          badge="Forecast"
+          :tone="projectionTone"
+        />
+      </section>
+
+      <section class="primary-grid">
+        <EnergyChart
+          class="chart-panel"
+          :data="records"
+          :expected-dates="expectedDates"
+          :threshold="highUsageThreshold"
+          :subtitle="`${periodWindow.start} to ${periodWindow.end}`"
+        />
+
+        <aside class="health-panel">
+          <div class="panel-header">
+            <h2>Current Range</h2>
+            <span>{{ loadedFiles.length }}/{{ attemptedFiles.length }} files</span>
+          </div>
+
+          <dl class="health-list">
+            <div>
+              <dt>CSV files</dt>
+              <dd>{{ attemptedFilesLabel }}</dd>
+            </div>
+            <div>
+              <dt>Missing days</dt>
+              <dd>
+                {{ missingDates.length }}
+                <span v-if="missingDates.length > 0" class="missing-preview">{{ missingDatesLabel }}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>High days</dt>
+              <dd>{{ highUsageDays.length }}</dd>
+            </div>
+            <div>
+              <dt>Average daily</dt>
+              <dd>{{ metrics.averageUsage.toFixed(2) }} kWh</dd>
+            </div>
+          </dl>
+
+          <div class="alert-list">
+            <div v-for="alert in alerts" :key="alert.title" class="alert-item" :class="alert.tone">
+              <strong>{{ alert.title }}</strong>
+              <span>{{ alert.body }}</span>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="table-section">
+        <div class="panel-header">
+          <h2>Recent Expected Days</h2>
+          <a v-if="latestCsvUrl" :href="latestCsvUrl" target="_blank" rel="noopener noreferrer">Open latest CSV</a>
         </div>
 
-        <div class="chart-section">
-          <EnergyChart :data="filteredData" />
+        <div v-if="timelineRows.length === 0" class="empty-table">
+          No expected days were found for this range.
         </div>
-      </div>
-      <div class="data-info">
-        <p class="data-source">
-          Data source: <a :href="githubCsvUrl" target="_blank" rel="noopener noreferrer">GitHub CSV</a>
-          • Last updated: {{ lastUpdated }}
-        </p>
-      </div>
-    </div>
-  </div>
+
+        <table v-else class="records-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Usage</th>
+              <th>Status</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in recentRows" :key="row.date" :class="{ missing: row.missing }">
+              <td>{{ row.date }}</td>
+              <td>{{ row.usage === null ? '-' : `${row.usage.toFixed(2)} kWh` }}</td>
+              <td>
+                <span class="row-status" :class="rowStatusClass(row)">
+                  {{ rowStatusLabel(row) }}
+                </span>
+              </td>
+              <td>{{ row.sourceFile || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="data-health-row">
+        <BillingCompletenessChart :periods="historyPeriods" />
+      </section>
+    </template>
+
+    <footer class="monitor-footer">
+      Last checked: {{ lastChecked || '-' }}
+    </footer>
+  </main>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import MetricsCard from './MetricsCard.vue';
-import EnergyChart from './EnergyChart.vue';
-import { fetchEnergyDataFromGitHub, calculateMetrics } from '../utils/energyData';
-import type { EnergyUsageRecord, EnergyMetrics } from '../types/energy';
+import { computed, onMounted, ref, watch } from 'vue';
 import dayjs from 'dayjs';
+import BillingCompletenessChart from './BillingCompletenessChart.vue';
+import EnergyChart from './EnergyChart.vue';
+import MetricsCard from './MetricsCard.vue';
+import { buildRawCsvUrl, calculateMetrics, fetchEnergyDataFromGitHub } from '../utils/energyData';
+import type { BillingPeriodData, EnergyUsageRecord } from '../types/energy';
 
-const energyData = ref<EnergyUsageRecord[]>([]);
+type RangeOption = 'current' | 'previous' | '14' | '30' | '90' | '180';
+type Tone = 'neutral' | 'good' | 'warning' | 'danger';
+
+interface AlertItem {
+  title: string;
+  body: string;
+  tone: Tone;
+}
+
+interface TimelineRow {
+  date: string;
+  usage: number | null;
+  sourceFile?: string;
+  missing: boolean;
+}
+
+const selectedRange = ref<RangeOption>('current');
+const highUsageThreshold = ref(Number(import.meta.env.VITE_HIGH_USAGE_KWH || 4));
+const budgetOverride = ref<number | null>(null);
+const records = ref<EnergyUsageRecord[]>([]);
+const expectedDates = ref<string[]>([]);
+const attemptedFiles = ref<string[]>([]);
+const loadedFiles = ref<string[]>([]);
+const missingDates = ref<string[]>([]);
+const historyPeriods = ref<BillingPeriodData[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const lastUpdated = ref<string>('');
+const lastChecked = ref('');
 
-const githubCsvUrl = computed(() => {
-  const githubName = import.meta.env.VITE_GITHUB_USERNAME || 'your-github-username';
-  return `https://github.com/${githubName}/monitokyogas/blob/main/backend/csv_store/electricity.csv`;
-});
+function billingStart(date: dayjs.Dayjs): dayjs.Dayjs {
+  return date.date() >= 24 ? date.date(24) : date.subtract(1, 'month').date(24);
+}
 
-const selectedPeriod = ref(-1); // -1: this period, -2: previous period, N: last N days
-const filteredData = computed(() => {
-  if (selectedPeriod.value === -1 || selectedPeriod.value === -2) {
-    return energyData.value;
+function getRangeWindow(range: RangeOption): { start: dayjs.Dayjs; end: dayjs.Dayjs } {
+  const today = dayjs().startOf('day');
+  const latestExpectedDate = today.subtract(1, 'day');
+  const currentStart = billingStart(latestExpectedDate);
+
+  if (range === 'current') {
+    return { start: currentStart, end: latestExpectedDate };
   }
-  return energyData.value.slice(-selectedPeriod.value);
-});
-const filteredMetrics = computed<EnergyMetrics>(() => calculateMetrics(filteredData.value));
 
-const loadData = async (startDate: dayjs.Dayjs, endDate: dayjs.Dayjs) => {
+  if (range === 'previous') {
+    const end = currentStart.subtract(1, 'day');
+    return { start: billingStart(end), end };
+  }
+
+  return {
+    start: latestExpectedDate.subtract(Number(range) - 1, 'day'),
+    end: latestExpectedDate,
+  };
+}
+
+function formatPeriodLabel(start: dayjs.Dayjs, end: dayjs.Dayjs): string {
+  return `${start.format('MMM D')}-${end.format('MMM D')}`;
+}
+
+function getCompletedBillingPeriodWindows(count: number): Array<{ label: string; start: dayjs.Dayjs; end: dayjs.Dayjs }> {
+  const latestExpectedDate = dayjs().startOf('day').subtract(1, 'day');
+  const currentStart = billingStart(latestExpectedDate);
+  const windows: Array<{ label: string; start: dayjs.Dayjs; end: dayjs.Dayjs }> = [];
+  let end = currentStart.subtract(1, 'day');
+
+  for (let index = 0; index < count; index++) {
+    const start = billingStart(end);
+    windows.push({
+      label: formatPeriodLabel(start, end),
+      start,
+      end,
+    });
+    end = start.subtract(1, 'day');
+  }
+
+  return windows;
+}
+
+async function loadBillingPeriod(
+  window: { label: string; start: dayjs.Dayjs; end: dayjs.Dayjs }
+): Promise<BillingPeriodData> {
+  const response = await fetchEnergyDataFromGitHub(window.start, window.end);
+
+  return {
+    ...response,
+    label: window.label,
+    start: window.start.format('YYYY-MM-DD'),
+    end: window.end.format('YYYY-MM-DD'),
+  };
+}
+
+const periodWindow = computed(() => {
+  const { start, end } = getRangeWindow(selectedRange.value);
+  return {
+    start: start.format('YYYY-MM-DD'),
+    end: end.format('YYYY-MM-DD'),
+    totalDays: end.diff(start, 'day') + 1,
+  };
+});
+
+const rangeLabel = computed(() => {
+  if (selectedRange.value === 'current') return 'current period';
+  if (selectedRange.value === 'previous') return 'previous period';
+  return `${selectedRange.value} days`;
+});
+
+const metrics = computed(() => calculateMetrics(records.value));
+const latestRecord = computed(() => records.value[records.value.length - 1]);
+const highUsageDays = computed(() => records.value.filter(record => record.usage > highUsageThreshold.value));
+const defaultBudget = computed(() => {
+  return Math.round(periodWindow.value.totalDays * highUsageThreshold.value * 100) / 100;
+});
+const periodBudget = computed(() => budgetOverride.value ?? defaultBudget.value);
+const budgetInput = computed({
+  get: () => periodBudget.value,
+  set: (value: number) => {
+    budgetOverride.value = Number.isFinite(value) ? value : null;
+  },
+});
+const timelineRows = computed<TimelineRow[]>(() => {
+  const recordsByDate = new Map(records.value.map(record => [record.date, record]));
+
+  return expectedDates.value.map(date => {
+    const record = recordsByDate.get(date);
+
+    return {
+      date,
+      usage: record?.usage ?? null,
+      sourceFile: record?.sourceFile,
+      missing: !record,
+    };
+  });
+});
+const recentRows = computed(() => timelineRows.value.slice(-12).reverse());
+
+const dataLagDays = computed(() => {
+  if (!latestRecord.value) return periodWindow.value.totalDays;
+  return Math.max(0, dayjs(periodWindow.value.end).diff(dayjs(latestRecord.value.date), 'day'));
+});
+
+const completeness = computed(() => {
+  const expected = expectedDates.value.length || periodWindow.value.totalDays;
+  if (expected <= 0) return 0;
+  return Math.round((records.value.length / expected) * 100);
+});
+
+const projectedUsage = computed(() => {
+  if (metrics.value.totalDays === 0) return 0;
+  return Math.round(metrics.value.averageUsage * periodWindow.value.totalDays * 100) / 100;
+});
+
+const remainingBudgetLabel = computed(() => {
+  const remaining = periodBudget.value - projectedUsage.value;
+  if (remaining >= 0) return `${remaining.toFixed(1)} kWh remaining`;
+  return `${Math.abs(remaining).toFixed(1)} kWh over`;
+});
+
+const usageTone = computed<Tone>(() => {
+  if (metrics.value.totalUsage > periodBudget.value) return 'danger';
+  if (metrics.value.totalUsage > periodBudget.value * 0.8) return 'warning';
+  return 'good';
+});
+
+const projectionTone = computed<Tone>(() => {
+  if (projectedUsage.value > periodBudget.value) return 'danger';
+  if (projectedUsage.value > periodBudget.value * 0.85) return 'warning';
+  return 'good';
+});
+
+const latestTone = computed<Tone>(() => {
+  if (!latestRecord.value) return 'warning';
+  return latestRecord.value.usage > highUsageThreshold.value ? 'danger' : 'good';
+});
+
+const monitorStatus = computed<{ label: string; reason: string; tone: Tone }>(() => {
+  if (records.value.length === 0) {
+    return {
+      label: 'No Data',
+      reason: 'No CSV rows loaded for the selected range.',
+      tone: 'danger',
+    };
+  }
+
+  if (dataLagDays.value > 3) {
+    return {
+      label: 'Stale',
+      reason: `Latest row is ${dataLagDays.value} days old.`,
+      tone: 'danger',
+    };
+  }
+
+  if (projectedUsage.value > periodBudget.value) {
+    return {
+      label: 'Over Budget',
+      reason: 'Projection is above the configured period budget.',
+      tone: 'danger',
+    };
+  }
+
+  if (highUsageDays.value.length > 0 || missingDates.value.length > 0) {
+    return {
+      label: 'Watch',
+      reason: 'There are high-usage readings or missing dates to inspect.',
+      tone: 'warning',
+    };
+  }
+
+  return {
+    label: 'Healthy',
+    reason: 'Data is current and usage is within configured limits.',
+    tone: 'good',
+  };
+});
+
+const alerts = computed<AlertItem[]>(() => {
+  const items: AlertItem[] = [];
+
+  if (dataLagDays.value > 1) {
+    items.push({
+      title: 'Freshness',
+      body: `Latest reading is ${dataLagDays.value} days behind today.`,
+      tone: dataLagDays.value > 3 ? 'danger' : 'warning',
+    });
+  }
+
+  if (missingDates.value.length > 0) {
+    items.push({
+      title: 'Completeness',
+      body: `${missingDates.value.length} expected day(s) are missing in this range.`,
+      tone: 'warning',
+    });
+  }
+
+  if (highUsageDays.value.length > 0) {
+    items.push({
+      title: 'Threshold',
+      body: `${highUsageDays.value.length} day(s) exceeded ${highUsageThreshold.value.toFixed(1)} kWh.`,
+      tone: 'danger',
+    });
+  }
+
+  if (projectedUsage.value > periodBudget.value) {
+    items.push({
+      title: 'Budget',
+      body: `Projected usage is ${remainingBudgetLabel.value}.`,
+      tone: 'danger',
+    });
+  }
+
+  if (items.length === 0) {
+    items.push({
+      title: 'Nominal',
+      body: 'No active monitor alerts for this range.',
+      tone: 'good',
+    });
+  }
+
+  return items;
+});
+
+const attemptedFilesLabel = computed(() => {
+  if (attemptedFiles.value.length === 0) return '-';
+  if (attemptedFiles.value.length <= 2) return attemptedFiles.value.join(', ');
+  return `${attemptedFiles.value[0]} + ${attemptedFiles.value.length - 1} more`;
+});
+
+const missingDatesLabel = computed(() => {
+  if (missingDates.value.length === 0) return '';
+  const preview = missingDates.value.slice(0, 4).join(', ');
+  const remaining = missingDates.value.length - 4;
+  return remaining > 0 ? `${preview} + ${remaining} more` : preview;
+});
+
+const latestCsvUrl = computed(() => {
+  const fileName =
+    latestRecord.value?.sourceFile || loadedFiles.value[loadedFiles.value.length - 1];
+  return fileName ? buildRawCsvUrl(fileName) : '';
+});
+
+function rowStatusClass(row: TimelineRow): Tone {
+  if (row.missing) return 'warning';
+  if (row.usage !== null && row.usage > highUsageThreshold.value) return 'danger';
+  return 'good';
+}
+
+function rowStatusLabel(row: TimelineRow): string {
+  if (row.missing) return 'Missing';
+  if (row.usage !== null && row.usage > highUsageThreshold.value) return 'High';
+  return 'Normal';
+}
+
+const loadData = async () => {
   isLoading.value = true;
   error.value = null;
-  
+
+  const { start, end } = getRangeWindow(selectedRange.value);
+  const completedWindows = getCompletedBillingPeriodWindows(6);
+
   try {
-    const data = await fetchEnergyDataFromGitHub(startDate, endDate);
-    energyData.value = data;
-    lastUpdated.value = new Date().toLocaleString();
+    const [response, completedPeriodData] = await Promise.all([
+      fetchEnergyDataFromGitHub(start, end),
+      Promise.all(completedWindows.map(loadBillingPeriod)),
+    ]);
+
+    records.value = response.records;
+    expectedDates.value = response.expectedDates;
+    attemptedFiles.value = response.attemptedFiles;
+    loadedFiles.value = response.loadedFiles;
+    missingDates.value = response.missingDates;
+    historyPeriods.value = completedPeriodData;
+    lastChecked.value = new Date().toLocaleString();
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load energy data';
-    console.error('Failed to load energy data:', err);
   } finally {
     isLoading.value = false;
   }
 };
 
-const retryLoadData = (startDate: dayjs.Dayjs, endDate: dayjs.Dayjs) => {
-  loadData(startDate, endDate);
-};
-
-
-function getHeadDate(date: dayjs.Dayjs): dayjs.Dayjs {
-  if (date.date() <= 23) {
-    return date.subtract(1, 'month').date(24);
-  }
-  return date.date(24);
-}
-
-function getPeriodDates(period: number): { start: dayjs.Dayjs, end: dayjs.Dayjs } {
-  const today = dayjs();
-  if (period === -1) {
-    // This period: from last 23rd to today
-    return { start: getHeadDate(today), end: today };
-  } else if (period === -2) {
-    // Previous period: from previous 23rd to last 23rd
-    const end = getHeadDate(today).subtract(1, 'day');
-    const start = getHeadDate(end.subtract(1, 'day'));
-    return { start, end };
-  } else {
-    // Last N days
-    return { start: today.subtract(period, 'day'), end: today };
-  }
-}
-
-onMounted(() => {
-  const { start, end } = getPeriodDates(selectedPeriod.value);
-  loadData(start, end);
-});
-
-import { watch } from 'vue';
-watch(selectedPeriod, (newVal) => {
-  const { start, end } = getPeriodDates(newVal);
-  loadData(start, end);
-});
+onMounted(loadData);
+watch(selectedRange, loadData);
 </script>
 
 <style scoped>
-.dashboard {
-  margin: 0 auto;
-  padding: 16px;
+.monitor-page {
+  background: #f4f6f8;
+  color: #172033;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 100%);
+  padding: 24px;
 }
 
-/* Loading State */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  text-align: center;
-}
-
-.loading-spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid #e2e8f0;
-  border-top: 4px solid #10b981;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.loading-text {
-  font-size: 16px;
-  color: #64748b;
-  margin: 0;
-}
-
-/* Error State */
-.error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  text-align: center;
-  padding: 32px;
-}
-
-.error-icon {
-  color: #ef4444;
-  margin-bottom: 16px;
-}
-
-.error-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 8px 0;
-}
-
-.error-message {
-  font-size: 16px;
-  color: #64748b;
-  margin: 0 0 24px 0;
-  max-width: 500px;
-  line-height: 1.6;
-}
-
-.retry-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #10b981;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.retry-button:hover {
-  background: #059669;
-  transform: translateY(-1px);
-}
-
-/* No Data State */
-.no-data-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  text-align: center;
-  padding: 32px;
-}
-
-.no-data-icon {
-  color: #94a3b8;
-  margin-bottom: 16px;
-}
-
-.no-data-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 8px 0;
-}
-
-.no-data-message {
-  font-size: 16px;
-  color: #64748b;
-  margin: 0;
-  max-width: 500px;
-  line-height: 1.6;
-}
-
-/* Dashboard Content */
-.dashboard-content {
-  animation: fadeIn 0.5s ease-in;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
+.monitor-header {
   align-items: flex-start;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  margin: 0 auto 18px;
+  max-width: 1320px;
 }
 
-.header-content {
-  flex: 1;
-}
-
-.dashboard-title {
-  font-size: 28px;
+.eyebrow {
+  color: #2563eb;
+  font-size: 12px;
   font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 6px 0;
-  line-height: 1.2;
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  letter-spacing: 0;
+  margin: 0 0 6px;
+  text-transform: uppercase;
 }
 
-.dashboard-subtitle {
-  font-size: 14px;
-  color: #64748b;
+h1 {
+  color: #111827;
+  font-size: 34px;
+  line-height: 1.1;
   margin: 0;
-  font-weight: 500;
 }
 
-.header-status {
-  display: flex;
-  align-items: center;
+.subtitle {
+  color: #64748b;
+  margin: 8px 0 0;
 }
 
-.status-indicator {
-  display: flex;
+.status-pill {
   align-items: center;
-  gap: 6px;
-  background: rgba(16, 185, 129, 0.1);
-  padding: 6px 12px;
-  border-radius: 50px;
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: #ffffff;
+  border: 1px solid #d8dee8;
+  border-radius: 999px;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.status-pill.good {
+  color: #166534;
+}
+
+.status-pill.warning {
+  color: #92400e;
+}
+
+.status-pill.danger {
+  color: #991b1b;
 }
 
 .status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-  animation: pulse 2s infinite;
+  background: currentColor;
+  border-radius: 999px;
+  height: 8px;
+  width: 8px;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+.control-bar,
+.metrics-grid,
+.primary-grid,
+.data-health-row,
+.table-section,
+.notice,
+.monitor-footer {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1320px;
 }
 
-.status-text {
+.control-bar {
+  align-items: end;
+  background: #ffffff;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(240px, 1fr) repeat(2, minmax(130px, 160px)) auto;
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  color: #5b6472;
   font-size: 12px;
-  font-weight: 600;
-  color: #065f46;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
-.metrics-and-charts {
-  display: flex;
-  flex-direction: row;
-  gap: 24px;
-  align-items: stretch;
+.select-input,
+.number-input {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  font: inherit;
+  height: 40px;
+  padding: 0 10px;
   width: 100%;
 }
 
-.metrics-grid {
-  min-width: 30px;
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 auto;
-  gap: 16px;
-  margin-bottom: 0;
-  height: 100%;
-}
-
-.chart-section {
-  flex: 1 1 0;
-  min-width: 30px;
-  margin-bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  height: 100%;
-}
-
-.insights-section {
-  margin-bottom: 24px;
-}
-
-.insights-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-}
-
-.insights-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 16px 0;
-}
-
-.insights-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.insight-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(248, 250, 252, 0.5);
-  border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-}
-
-.insight-icon {
-  width: 28px;
-  height: 28px;
+.refresh-button {
+  background: #1f2937;
+  border: 1px solid #1f2937;
   border-radius: 6px;
-  display: flex;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  height: 40px;
+  padding: 0 16px;
+}
+
+.notice {
+  background: #ffffff;
+  border: 1px solid #d8dee8;
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.notice.danger {
+  border-left-color: #dc2626;
+}
+
+.metrics-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.primary-grid {
+  align-items: stretch;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 0.8fr);
+  margin-bottom: 16px;
+}
+
+.data-health-row {
+  margin-bottom: 16px;
+}
+
+.chart-panel {
+  min-width: 0;
+}
+
+.health-panel,
+.table-section {
+  background: #ffffff;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.panel-header {
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: white;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
 }
 
-.insight-icon.efficient {
-  background: linear-gradient(135deg, #10b981 0%, #06d6a0 100%);
-}
-
-.insight-icon.info {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-}
-
-.insight-icon.warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.insight-text {
-  font-size: 13px;
-  color: #475569;
+.panel-header h2 {
+  color: #111827;
+  font-size: 18px;
   margin: 0;
-  line-height: 1.5;
-  font-weight: 500;
 }
 
-.data-info {
-  text-align: center;
-  padding-top: 16px;
-  border-top: 1px solid rgba(226, 232, 240, 0.6);
-}
-
-.data-source {
+.panel-header span,
+.panel-header a {
+  color: #64748b;
   font-size: 12px;
-  color: #94a3b8;
-  margin: 0;
+  font-weight: 700;
 }
 
-.data-source a {
-  color: #10b981;
+.panel-header a {
+  color: #1d4ed8;
   text-decoration: none;
 }
 
-.data-source a:hover {
-  text-decoration: underline;
+.health-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
 }
 
-/* Mobile Responsive Design */
-@media (max-width: 768px) {
-  .dashboard {
-    padding: 12px;
+.health-list div {
+  border-bottom: 1px solid #edf1f5;
+  display: grid;
+  gap: 4px;
+  padding-bottom: 10px;
+}
+
+.health-list dt {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.health-list dd {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.missing-preview {
+  color: #64748b;
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.alert-list {
+  display: grid;
+  gap: 8px;
+}
+
+.alert-item {
+  border: 1px solid #d8dee8;
+  border-left: 4px solid #64748b;
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+}
+
+.alert-item strong {
+  font-size: 13px;
+}
+
+.alert-item span {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.alert-item.good {
+  border-left-color: #16a34a;
+}
+
+.alert-item.warning {
+  border-left-color: #d97706;
+}
+
+.alert-item.danger {
+  border-left-color: #dc2626;
+}
+
+.records-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.records-table th,
+.records-table td {
+  border-top: 1px solid #edf1f5;
+  color: #334155;
+  font-size: 13px;
+  padding: 10px 8px;
+  text-align: left;
+}
+
+.records-table th {
+  color: #64748b;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.records-table tr.missing td {
+  color: #64748b;
+}
+
+.row-status {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+}
+
+.row-status.good {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.row-status.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.row-status.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.empty-table {
+  align-items: center;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  display: flex;
+  min-height: 120px;
+  justify-content: center;
+}
+
+.monitor-footer {
+  color: #64748b;
+  font-size: 12px;
+  padding: 4px 0 0;
+}
+
+@media (max-width: 980px) {
+  .control-bar,
+  .metrics-grid,
+  .primary-grid {
+    grid-template-columns: 1fr 1fr;
   }
-  
-  .dashboard-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-    margin-bottom: 20px;
+
+  .primary-grid {
+    align-items: start;
   }
-  
-  .dashboard-title {
-    font-size: 22px;
-  }
-  
-  .dashboard-subtitle {
-    font-size: 13px;
-  }
-  
-  .metrics-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  
-  .insights-card {
+}
+
+@media (max-width: 720px) {
+  .monitor-page {
     padding: 16px;
   }
-  
-  .insights-title {
-    font-size: 16px;
-  }
-  
-  .insight-item {
-    padding: 10px;
-  }
-  
-  .insight-text {
-    font-size: 12px;
-  }
-  
-  .error-container,
-  .no-data-container,
-  .loading-container {
-    padding: 20px;
-    min-height: 50vh;
-  }
-  
-  .error-title,
-  .no-data-title {
-    font-size: 20px;
-  }
-  
-  .error-message,
-  .no-data-message {
-    font-size: 14px;
-  }
-}
 
-@media (max-width: 480px) {
-  .dashboard {
-    padding: 8px;
+  .monitor-header {
+    display: grid;
   }
-  
-  .dashboard-title {
-    font-size: 20px;
-  }
-  
-  .dashboard-subtitle {
-    font-size: 12px;
-  }
-  
-  .metrics-grid {
-    gap: 10px;
-  }
-  
-  .insights-card {
-    padding: 12px;
-  }
-  
-  .insight-item {
-    flex-direction: column;
-    text-align: center;
-    gap: 8px;
-  }
-  
-  .insight-icon {
-    align-self: center;
-  }
-}
 
-/* Large Desktop */
-@media (min-width: 1200px) {
-  .dashboard {
-    padding: 24px;
+  .control-bar,
+  .metrics-grid,
+  .primary-grid {
+    grid-template-columns: 1fr;
   }
-  
-  .dashboard-title {
-    font-size: 32px;
+
+  h1 {
+    font-size: 28px;
   }
-  
-  .dashboard-subtitle {
-    font-size: 16px;
+
+  .records-table {
+    min-width: 640px;
   }
-  
-  .metrics-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    margin-bottom: 32px;
-  }
-  
-  .chart-section {
-    margin-bottom: 32px;
-  }
-  
-  .insights-section {
-    margin-bottom: 32px;
-  }
-  
-  .insights-card {
-    padding: 24px;
+
+  .table-section {
+    overflow-x: auto;
   }
 }
 </style>

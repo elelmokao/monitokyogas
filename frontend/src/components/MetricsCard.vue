@@ -1,12 +1,12 @@
 <template>
-  <div class="metrics-card">
-    <div class="metric-icon">
-      <slot name="icon"></slot>
+  <div class="metrics-card" :class="tone">
+    <div class="metric-header">
+      <span class="metric-title">{{ title }}</span>
+      <span v-if="badge" class="metric-badge">{{ badge }}</span>
     </div>
     <div class="metric-content">
-      <h3 class="metric-title">{{ title }}</h3>
       <p class="metric-value">{{ formattedValue }}</p>
-      <p class="metric-subtitle">{{ subtitle }}</p>
+      <p v-if="subtitle" class="metric-subtitle">{{ subtitle }}</p>
     </div>
   </div>
 </template>
@@ -16,156 +16,111 @@ import { computed } from 'vue';
 
 interface Props {
   title: string;
-  value: number;
+  value: number | string;
   unit?: string;
   subtitle?: string;
+  badge?: string;
+  tone?: 'neutral' | 'good' | 'warning' | 'danger';
 }
 
 const props = withDefaults(defineProps<Props>(), {
   unit: 'kWh',
-  subtitle: ''
+  subtitle: '',
+  badge: '',
+  tone: 'neutral',
 });
 
 const formattedValue = computed(() => {
+  if (typeof props.value === 'string') return props.value;
+  if (!props.unit) return props.value.toFixed(2);
   return `${props.value.toFixed(2)} ${props.unit}`;
 });
 </script>
 
 <style scoped>
 .metrics-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: #ffffff;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 128px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.metrics-card.good {
+  border-top: 3px solid #16a34a;
+}
+
+.metrics-card.warning {
+  border-top: 3px solid #d97706;
+}
+
+.metrics-card.danger {
+  border-top: 3px solid #dc2626;
+}
+
+.metric-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.metrics-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #10b981, #06d6a0);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.metrics-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-.metrics-card:hover::before {
-  opacity: 1;
-}
-
-.metric-icon {
-  background: linear-gradient(135deg, #10b981 0%, #06d6a0 100%);
-  border-radius: 12px;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .metric-content {
-  flex: 1;
+  display: grid;
+  gap: 4px;
 }
 
 .metric-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #64748b;
-  margin: 0 0 4px 0;
+  color: #5b6472;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+}
+
+.metric-badge {
+  border-radius: 999px;
+  background: #edf2f7;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
 }
 
 .metric-value {
-  font-size: 22px;
+  color: #101827;
+  font-size: 28px;
   font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 4px 0;
-  line-height: 1.2;
+  line-height: 1.1;
+  margin: 0;
 }
 
 .metric-subtitle {
-  font-size: 11px;
-  color: #94a3b8;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
   margin: 0;
 }
 
 @media (max-width: 768px) {
   .metrics-card {
+    min-height: 112px;
     padding: 14px;
-    gap: 10px;
   }
-  
-  .metric-icon {
-    width: 36px;
-    height: 36px;
-  }
-  
-  .metric-title {
-    font-size: 12px;
-  }
-  
+
   .metric-value {
-    font-size: 18px;
-  }
-  
-  .metric-subtitle {
-    font-size: 10px;
+    font-size: 24px;
   }
 }
 
 @media (max-width: 480px) {
-  .metrics-card {
-    padding: 12px;
-    gap: 8px;
-  }
-  
-  .metric-icon {
-    width: 32px;
-    height: 32px;
-  }
-  
   .metric-value {
-    font-size: 16px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .metrics-card {
-    padding: 24px;
-    gap: 16px;
-  }
-  
-  .metric-icon {
-    width: 48px;
-    height: 48px;
-  }
-  
-  .metric-title {
-    font-size: 14px;
-  }
-  
-  .metric-value {
-    font-size: 24px;
-  }
-  
-  .metric-subtitle {
-    font-size: 12px;
+    font-size: 22px;
   }
 }
 </style>
