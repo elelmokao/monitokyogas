@@ -1,9 +1,6 @@
 import { EnergyUsageRecord, EnergyMetrics, EnergyDataResponse } from '../types/energy';
 import dayjs from 'dayjs';
-
-const DEFAULT_GITHUB_USERNAME = 'elelmokao';
-const DEFAULT_REPO = 'monitokyogas';
-const DEFAULT_DATA_BRANCH = 'data';
+import { getAppConfig } from './appConfig';
 
 export const calculateMetrics = (data: EnergyUsageRecord[]): EnergyMetrics => {
   if (data.length === 0) {
@@ -121,16 +118,18 @@ export const parseCSV = (csvContent: string, sourceFile?: string): EnergyUsageRe
 };
 
 function getRawCsvBaseUrl(): string {
-  const githubUser = import.meta.env.VITE_GITHUB_USERNAME || DEFAULT_GITHUB_USERNAME;
-  const repo = import.meta.env.VITE_GITHUB_REPO || DEFAULT_REPO;
-  const branch = import.meta.env.VITE_DATA_BRANCH || DEFAULT_DATA_BRANCH;
+  const config = getAppConfig();
+  if (!config.githubOwner || !config.githubRepo) {
+    throw new Error('Missing VITE_GITHUB_OWNER or VITE_GITHUB_REPO');
+  }
 
-  return `https://raw.githubusercontent.com/${githubUser}/${repo}/${branch}/backend/csv_store`;
+  return `https://raw.githubusercontent.com/${config.githubOwner}/${config.githubRepo}/${config.dataBranch}/backend/csv_store`;
 }
 
 export function getCsvFileNameForDate(dateStr: string): string {
+  const config = getAppConfig();
   const date = dayjs(dateStr);
-  const fileMonth = date.date() >= 24 ? date.add(1, 'month') : date;
+  const fileMonth = date.date() >= config.billingCycleStartDay ? date.add(1, 'month') : date;
   return `electricity_${fileMonth.format('YYYY-MM')}.csv`;
 }
 

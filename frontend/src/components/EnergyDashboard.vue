@@ -171,6 +171,7 @@ import dayjs from 'dayjs';
 import BillingCompletenessChart from './BillingCompletenessChart.vue';
 import EnergyChart from './EnergyChart.vue';
 import MetricsCard from './MetricsCard.vue';
+import { getAppConfig } from '../utils/appConfig';
 import { buildRawCsvUrl, calculateMetrics, fetchEnergyDataFromGitHub } from '../utils/energyData';
 import type { BillingPeriodData, EnergyUsageRecord } from '../types/energy';
 
@@ -191,7 +192,8 @@ interface TimelineRow {
 }
 
 const selectedRange = ref<RangeOption>('current');
-const highUsageThreshold = ref(Number(import.meta.env.VITE_HIGH_USAGE_KWH || 4));
+const appConfig = getAppConfig();
+const highUsageThreshold = ref(appConfig.highUsageKwh);
 const budgetOverride = ref<number | null>(null);
 const records = ref<EnergyUsageRecord[]>([]);
 const expectedDates = ref<string[]>([]);
@@ -204,7 +206,8 @@ const error = ref<string | null>(null);
 const lastChecked = ref('');
 
 function billingStart(date: dayjs.Dayjs): dayjs.Dayjs {
-  return date.date() >= 24 ? date.date(24) : date.subtract(1, 'month').date(24);
+  const startDay = appConfig.billingCycleStartDay;
+  return date.date() >= startDay ? date.date(startDay) : date.subtract(1, 'month').date(startDay);
 }
 
 function getRangeWindow(range: RangeOption): { start: dayjs.Dayjs; end: dayjs.Dayjs } {
