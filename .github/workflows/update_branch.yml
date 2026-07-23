@@ -11,6 +11,8 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      DATA_BRANCH: data
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,12 +30,12 @@ jobs:
           # echo all branches
           git branch -a
           # Check if data branch exists and switch to it, otherwise exit
-          if git show-ref --verify --quiet refs/remotes/origin/data; then
-            git switch data
-            git pull origin data
+          if git show-ref --verify --quiet "refs/remotes/origin/$DATA_BRANCH"; then
+            git switch "$DATA_BRANCH"
+            git pull origin "$DATA_BRANCH"
           else
-            echo "Data branch does not exist. Exiting."
+            echo "$DATA_BRANCH branch does not exist. Exiting."
             exit 0
           fi
           git merge --no-ff origin/main -m "Merge main into data [skip ci]"
-          git push origin data
+          git push origin "$DATA_BRANCH"

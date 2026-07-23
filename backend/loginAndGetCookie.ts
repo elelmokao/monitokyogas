@@ -1,7 +1,6 @@
 import puppeteer from "puppeteer";
 import type { Page } from "puppeteer";
-import dotenv from 'dotenv';
-dotenv.config()
+import { BackendConfig, requireTokyoGasConfig } from "./config";
 
 const HOME_URL = "https://members.tokyo-gas.co.jp/";
 const LOGIN_URL = "https://members.tokyo-gas.co.jp/api/mtg/v1/auth/login";
@@ -14,12 +13,11 @@ async function describePage(page: Page, label: string) {
   console.warn(`[login] ${label}: url=${page.url()} title=${await page.title()}`);
 }
 
-export async function loginAndGetCookie(): Promise<string> {
-  const email = process.env.TOKYOGAS_EMAIL!;
-  const password = process.env.TOKYOGAS_PASSWORD!;
-  if (!email || !password) {
-    throw new Error("Please set TOKYOGAS_EMAIL and TOKYOGAS_PASSWORD in your .env file");
-  }
+export async function loginAndGetCookie(
+  config: BackendConfig = requireTokyoGasConfig(),
+): Promise<string> {
+  const email = config.tokyoGasEmail!;
+  const password = config.tokyoGasPassword!;
 
   const browser = await puppeteer.launch({
     headless: true,

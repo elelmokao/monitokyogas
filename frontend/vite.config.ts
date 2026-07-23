@@ -1,12 +1,13 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const repoName = 'monitokyogas';
+  const env = loadEnv(mode, '.', '');
+  const basePath = env.VITE_BASE_PATH || '/';
 
   return {
-    base: mode === 'production' ? `/${repoName}/` : '/',
+    base: basePath,
     plugins: [vue()],
   }
 })
