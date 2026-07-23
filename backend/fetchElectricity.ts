@@ -3,32 +3,9 @@ import * as fs from "fs";
 import * as path from "path";
 import { createObjectCsvWriter } from "csv-writer";
 import dayjs from "dayjs";
-import dotenv from 'dotenv';
+import { BackendConfig, loadConfig, requireTokyoGasConfig } from "./config";
+import { getCsvFilePathForUsageDate } from "./energyRules";
 import { loginAndGetCookie } from "./loginAndGetCookie";
-import { group } from "console";
-const cookieFilePath = path.join(__dirname, "cookie_store", "cookie.txt");
-
-
-dotenv.config();
-
-
-// 依據日期取得分組的 csv 檔名
-function getCsvFilePath(dateStr: string): string {
-  const date = dayjs(dateStr);
-  let startMonth = date.month();
-  let startYear = date.year();
-  if (date.date() >= 24) { // Belong to next month
-    const nextMonth = date.add(1, 'month');
-    startMonth = nextMonth.month() + 1; // 1-based month (1=Jan, 12=Dec)
-    startYear = nextMonth.year();
-  } else {
-    startMonth = date.month() + 1; // 1-based month
-  }
-  // 區間起始年月
-  const fileMonth = (startMonth).toString().padStart(2, '0');
-  const fileYear = startYear;
-  return path.join("./csv_store/", `electricity_${fileYear}-${fileMonth}.csv`);
-}
 
 interface UsageData {
   date: string;
@@ -36,7 +13,10 @@ interface UsageData {
   contract_number?: string;
 }
 
-async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
+async function fetchElectricityUsage(
+  cookie: string,
+  config: BackendConfig,
+): Promise<UsageData[]> {
   const fromDate = dayjs().subtract(14, "day").format("YYYY-MM-DD");
   const response = await axios.post(
     "https://members.tokyo-gas.co.jp/graphql",
@@ -44,7 +24,7 @@ async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
       operationName: "DailyElectricityUsage",
       variables: {
         contractIndexNumber: 1,
-        electricityContractNumber: process.env.CONTRACT_NUMBER,
+        electricityContractNumber: config.contractNumber,
         fromDate: fromDate,
         toDate: null,
       },
@@ -83,17 +63,21 @@ async function fetchElectricityUsage(cookie: string): Promise<UsageData[]> {
   return response.data.data.dailyElectricityUsage.map((entry: any) => ({
     date: entry.date.slice(0, 10),
     usage: entry.usage,
-    contract_number: process.env.CONTRACT_NUMBER,
+    contract_number: config.contractNumber,
   }));
 }
 
-async function appendToCSV(data: UsageData[]) {
+async function appendToCSV(data: UsageData[], config: BackendConfig) {
   // 依照分組分檔案
   // 先將資料依區間分組
   const groups: { [filePath: string]: UsageData[] } = {};
   for (const d of data) {
     const dateStr = dayjs(d.date).add(1, "day").format("YYYY-MM-DD");
-    const filePath = getCsvFilePath(dateStr);
+    const filePath = getCsvFilePathForUsageDate(
+      dateStr,
+      config.csvStoreDir,
+      config.billingCycleStartDay,
+    );
     console.log(`Date ${dateStr} goes to file ${filePath}`);
     if (!groups[filePath]) groups[filePath] = [];
     groups[filePath].push({ ...d, date: dateStr });
@@ -113,6 +97,7 @@ async function appendToCSV(data: UsageData[]) {
       continue;
     }
     if (!fs.existsSync(filePath)) {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
       fs.writeFileSync(filePath, 'Date,Usage (kWh)\n', 'utf-8');
     }
     const writer = createObjectCsvWriter({
@@ -130,14 +115,15 @@ async function appendToCSV(data: UsageData[]) {
 
 async function main() {
   try {
+    const config = requireTokyoGasConfig(loadConfig());
     let cookie: string | undefined;
     // 1. Try to read cookie from cookie_store/cookie.txt
-    if (fs.existsSync(cookieFilePath)) {
-      cookie = fs.readFileSync(cookieFilePath, "utf-8");
+    if (fs.existsSync(config.cookieFilePath)) {
+      cookie = fs.readFileSync(config.cookieFilePath, "utf-8");
       try {
         // Try to fetch data with existing cookie
-        const usageData = await fetchElectricityUsage(cookie);
-        await appendToCSV(usageData);
+        const usageData = await fetchElectricityUsage(cookie, config);
+        await appendToCSV(usageData, config);
         console.log("Completed using existing cookie");
         return;
       } catch (err) {
@@ -145,14 +131,15 @@ async function main() {
       }
     }
     // 2. If no cookie or invalid, re-login
-    cookie = await loginAndGetCookie();
-    fs.writeFileSync(cookieFilePath, cookie, "utf-8");
-    const usageData = await fetchElectricityUsage(cookie);
-    await appendToCSV(usageData);
+    cookie = await loginAndGetCookie(config);
+    fs.mkdirSync(path.dirname(config.cookieFilePath), { recursive: true });
+    fs.writeFileSync(config.cookieFilePath, cookie, "utf-8");
+    const usageData = await fetchElectricityUsage(cookie, config);
+    await appendToCSV(usageData, config);
   } catch (err) {
     console.error("Failed:", err);
+    process.exitCode = 1;
   }
 }
 
 main();
-

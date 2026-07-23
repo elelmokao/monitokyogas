@@ -21,44 +21,57 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
+          cache: 'pnpm'
+          cache-dependency-path: backend/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: backend
-        run: |
-          npm install
-          npx puppeteer browsers install chrome
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
+        run: pnpm install --frozen-lockfile
+
+      - name: Install browser
+        working-directory: backend
+        run: pnpm exec puppeteer browsers install chrome
 
       - name: Run fetchElectricity
         working-directory: backend
-        run: npx tsx fetchElectricity.ts
+        run: pnpm run fetch
         env:
           TOKYOGAS_EMAIL: ${{ secrets.TOKYOGAS_EMAIL }}
           TOKYOGAS_PASSWORD: ${{ secrets.TOKYOGAS_PASSWORD }}
           CONTRACT_NUMBER: ${{ secrets.CONTRACT_NUMBER }}
+          DATA_BRANCH: data
+          BILLING_CYCLE_START_DAY: 24
 
       - name: Push the csv file to the repository
         if: github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATA_BRANCH: data
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           temp_dir="$(mktemp -d)"
-          if git ls-remote --exit-code --heads origin data; then
-            git fetch origin data
-            git worktree add "$temp_dir" origin/data
+          if git ls-remote --exit-code --heads origin "$DATA_BRANCH"; then
+            git fetch origin "$DATA_BRANCH"
+            git worktree add "$temp_dir" "origin/$DATA_BRANCH"
           else
-            git worktree add -b data "$temp_dir"
+            git worktree add -b "$DATA_BRANCH" "$temp_dir"
           fi
           mkdir -p "$temp_dir/backend/csv_store"
           cp backend/csv_store/*.csv "$temp_dir/backend/csv_store/"
           cd "$temp_dir"
           git add backend/csv_store/*.csv
           git commit -m "Update CSV files [skip ci]" || echo "No changes to commit"
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:data
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git "HEAD:$DATA_BRANCH"
 
   run-dc-notice-bot:
     if: github.ref == 'refs/heads/main'
@@ -71,7 +84,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 11.7.0
 
       - uses: actions/setup-node@v4
         with:
@@ -81,13 +94,18 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: |
-          pnpm install --frozen-lockfile
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
+        run: pnpm install --frozen-lockfile
 
       - name: Run dcNoticeBot
         working-directory: backend
-        run: npx tsx dcNoticeBot.ts
+        run: pnpm run notify
         env:
           DC_CHANNEL_ID: ${{ secrets.DC_CHANNEL_ID }}
           DC_TOKEN: ${{ secrets.DC_TOKEN }}
-          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DATA_BRANCH: data
+          MONTHLY_USAGE_LIMIT_KWH: 120
+          DAILY_BUDGET_KWH: 4
+          BILLING_CYCLE_START_DAY: 24
