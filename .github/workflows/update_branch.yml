@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: tokyo-gas-data-branch
+  cancel-in-progress: false
+
 jobs:
   sync:
     runs-on: ubuntu-latest

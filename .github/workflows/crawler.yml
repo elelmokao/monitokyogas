@@ -12,6 +12,11 @@ permissions:
   contents: write
   actions: read
 
+# Serialize both workflows that write to the data branch.
+concurrency:
+  group: tokyo-gas-data-branch
+  cancel-in-progress: false
+
 jobs:
   run-fetch-electricity:
     if: github.ref == 'refs/heads/main'
@@ -41,6 +46,21 @@ jobs:
         working-directory: backend
         run: pnpm exec puppeteer browsers install chrome
 
+      - name: Prepare CSV history from data branch
+        env:
+          DATA_BRANCH: data
+        run: |
+          git fetch origin
+          temp_dir="$(mktemp -d)"
+          if git show-ref --verify --quiet "refs/remotes/origin/$DATA_BRANCH"; then
+            git worktree add --detach "$temp_dir" "origin/$DATA_BRANCH"
+          else
+            git worktree add --detach "$temp_dir" HEAD
+          fi
+          mkdir -p "$temp_dir/backend/csv_store"
+          echo "DATA_WORKTREE=$temp_dir" >> "$GITHUB_ENV"
+          echo "CSV_STORE_DIR=$temp_dir/backend/csv_store" >> "$GITHUB_ENV"
+
       - name: Run fetchElectricity
         working-directory: backend
         run: pnpm run fetch
@@ -59,19 +79,14 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          temp_dir="$(mktemp -d)"
-          if git ls-remote --exit-code --heads origin "$DATA_BRANCH"; then
-            git fetch origin "$DATA_BRANCH"
-            git worktree add "$temp_dir" "origin/$DATA_BRANCH"
-          else
-            git worktree add -b "$DATA_BRANCH" "$temp_dir"
+          cd "$DATA_WORKTREE"
+          git add -- backend/csv_store/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
           fi
-          mkdir -p "$temp_dir/backend/csv_store"
-          cp backend/csv_store/*.csv "$temp_dir/backend/csv_store/"
-          cd "$temp_dir"
-          git add backend/csv_store/*.csv
-          git commit -m "Update CSV files [skip ci]" || echo "No changes to commit"
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git "HEAD:$DATA_BRANCH"
+          git commit -m "Update CSV files [skip ci]"
+          git push origin "HEAD:refs/heads/$DATA_BRANCH"
 
   run-dc-notice-bot:
     if: github.ref == 'refs/heads/main'
